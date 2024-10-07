@@ -84,12 +84,12 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    type = "typescript"
 
    [vars]
-   UseBark = 'true' # set 'true' to use or 'false' to not use
+   UseBark = "true" # set 'true' to use or 'false' to not use
    barkUrl = "https://api.day.app"
-   barkTokens = '['token1', 'token2']' # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '['token1']'
-   FrontEndAdminID = 'admin' # your login
-   FrontEndAdminPassword = 'password' # your password
-   GoogleAPIKey = 'xxxxxxxxxxx' # your google api, go to https://aistudio.google.com/ to generate one if u dont have
+   barkTokens = "["token1", "token2"]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '['token1']'
+   FrontEndAdminID = "admin" # your login
+   FrontEndAdminPassword = "password" # your password
+   GoogleAPIKey = "xxxxxxxxxxx" # your google api, go to https://aistudio.google.com/ to generate one if u dont have
 
    [[d1_databases]] # Copy the lines obtained from step 2 from your terminal.
    binding = "DB"

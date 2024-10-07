@@ -23,12 +23,12 @@ enabled = true
 # Note: Use secrets to store sensitive data.
 # - https://developers.cloudflare.com/workers/configuration/secrets/
 [vars]
-UseBark = 'true'
+UseBark = "true"
 barkUrl = "https://api.day.app"
-barkTokens = '['token1', 'token2']' # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '['token1']'
-FrontEndAdminID = 'admin' # your login
-FrontEndAdminPassword = 'password' # your password
-GoogleAPIKey = 'xxxxxxxxxxx' # your google api
+barkTokens = "["token1", "token2"]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '['token1']'
+FrontEndAdminID = "admin" # your login
+FrontEndAdminPassword = "password" # your password
+GoogleAPIKey = "xxxxxxxxxxx" # your google api
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
 # [ai]
