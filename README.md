@@ -103,7 +103,7 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    ```
    You will get output like this:
    ```
-   Outputs: https://inbox-d1.<YOUR_SUBDOMAIN>.workers.dev
+   Outputs: https://auth-inbox.<YOUR_SUBDOMAIN>.workers.dev
    ```
    You can now visit the URL for your newly depolyed Auth Inbox for checking the email results.
 5. **Set Email Forwarding**
