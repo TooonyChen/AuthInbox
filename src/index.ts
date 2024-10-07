@@ -136,7 +136,8 @@ export default {
 
 		// 调用AI，让AI抓取验证码，让AI返回`title`和`code`
 		// title: 邮件是哪个公司/组织发来的验证码, 比如'Netflix'
-		// code: 验证码/链接/密码，比如'123456'or'https://example.com/verify?code=123456'
+		// code: 验证码/链接/密码，比如'123456'or'https://example.com/verify?code=123456',如都有则返回'code, link'
+		// topic: 邮件主题，比如'line register verification'
 		const aiPrompt = `
   Email content: ${rawEmail}.
 
@@ -169,7 +170,7 @@ export default {
 			let extractedData = null;
 
 			while (retryCount < maxRetries && !extractedData) {
-				// 调用 Google AI API 来获取 title 和 code
+				// 调用 Google AI API 来获取 title, code, topic
 				const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GoogleAPIKey}`, {
 					method: 'POST',
 					headers: {
