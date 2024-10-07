@@ -31,7 +31,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 - **Cloudflare Workers**: Serverless platform for handling email processing and web requests.
 - **D1Database**: Cloudflare's serverless SQL database for storing email data.
 - **TypeScript**: Strongly typed programming language for robust and maintainable code.
-- **Google AI API**: Utilized for extracting relevant information from emails.
+- **Google AI Studio API**: Utilized for extracting relevant information from emails.
 - **Bark API**: Optional integration for sending real-time notifications.
 - **HTML/CSS**: Front-end interface with responsive and modern design.
 - **Google Fonts**: Enhances the visual appeal of the web interface with consistent typography.
@@ -45,7 +45,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
    ```bash
    npm install wrangler -g
    ```
-   Create a [Google AI API](https://aistudio.google.com/)
+   Create a [Google AI Studio API](https://aistudio.google.com/)
    Have a domain binded on your [Cloudflare](https://dash.cloudflare.com/) account
 
 2. **Initialization**
