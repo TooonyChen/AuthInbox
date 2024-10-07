@@ -143,6 +143,6 @@ This project is licensed under the [MIT License](LICENSE).
 ## TODO 📝
 
 - [ ] **Multi-User Support**: Add functionality to manage multiple users for increased flexibility and broader usage.
+- [ ] **Enhance Front-End Design**: Improve the UI/UX of the web interface for a more modern and user-friendly experience.
 
 ---
-
