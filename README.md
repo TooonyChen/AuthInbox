@@ -1,6 +1,8 @@
 # AuthInbox
 
-**AuthInbox** is an open-source project designed to securely manage and view authentication emails. It automatically processes incoming emails, extracts verification codes or links, stores them in a database, and provides a user-friendly web interface for administrators to review the extracted information. Additionally, AuthInbox can send notifications via Bark, enhancing real-time alert capabilities.
+**AuthInbox** is an open-source project that securely manages and views authentication emails using [Cloudflare](https://cloudflare.com/)'s free services, so you don't need to set up your own servers. It automatically processes incoming emails, extracts verification codes or links, and stores them in a database. A user-friendly web interface is provided for administrators to easily review the extracted information. AuthInbox also supports real-time notifications via Bark, making it a comprehensive and hassle-free solution for email authentication management.
+
+Don't wanna receive ads on your main email? Want an perfect alt email for register any service or website? Try this! 
 
 ---
 
