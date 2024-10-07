@@ -1,6 +1,6 @@
-# AuthInbox
+# Auth Inbox
 
-**AuthInbox** is an open-source project that securely manages and views authentication emails using [Cloudflare](https://cloudflare.com/)'s free services, so you don't need to set up your own servers. It automatically processes incoming emails, extracts verification codes or links, and stores them in a database. A user-friendly web interface is provided for administrators to easily review the extracted information. AuthInbox also supports real-time notifications via Bark, making it a comprehensive and hassle-free solution for email authentication management.
+**Auth Inbox** is an open-source project that securely manages and views authentication emails using [Cloudflare](https://cloudflare.com/)'s free services, so you don't need to set up your own servers. It automatically processes incoming emails, extracts verification codes or links, and stores them in a database. A user-friendly web interface is provided for administrators to easily review the extracted information. AuthInbox also supports real-time notifications via Bark, making it a comprehensive and hassle-free solution for email authentication management.
 
 Don't wanna receive ads and spams on your main email? Want a bunch of alternative email for register services and websites? Try this! 
 
@@ -104,7 +104,7 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    ```
    Outputs: https://inbox-d1.<YOUR_SUBDOMAIN>.workers.dev
    ```
-   You can now visit the URL for your newly depolyed auth inbox for checking the email results.
+   You can now visit the URL for your newly depolyed Auth Inbox for checking the email results.
 5. **Set Email Forwarding**
    Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<your-domain>` -> `Email` -> `Email-Routing` -> `Routing Rules`
    if you want to use `catch-all address`:
