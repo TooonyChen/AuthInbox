@@ -31,7 +31,7 @@
 ## 使用技术
 
 - **Cloudflare Workers 无服务器平台**：用于处理邮件和网页请求的平台。
-- **D1Database**：Cloudflare 提供的无服务器 SQL 数据库，用于存储邮件数据。
+- **Cloudflare D1**：Cloudflare 提供的无服务器 SQL 数据库，用于存储邮件数据。
 - **TypeScript**：强类型的编程语言，提供稳健且易维护的代码。
 - **Google AI Studio API**：用于从邮件中提取相关信息。
 - **Bark API**：可选集成，用于发送实时通知。
