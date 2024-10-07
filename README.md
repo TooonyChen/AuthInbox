@@ -139,3 +139,14 @@ This project is licensed under the [MIT License](LICENSE).
 - **ChatGPT** for helping me writing some of the code.
 
 ---
+
+Here's the updated version with the TODO section:
+
+---
+
+## TODO 📝
+
+- [ ] **Multi-User Support**: Add functionality to manage multiple users for increased flexibility and broader usage.
+
+---
+
