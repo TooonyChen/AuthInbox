@@ -108,7 +108,7 @@
    ```
    你将看到如下输出：
    ```
-   output: https://inbox-d1.<你的子域名>.workers.dev
+   output: https://auth-inbox.<你的子域名>.workers.dev
    ```
    你现在可以访问该 URL 来查看你部署的 Auth Inbox 的邮件结果。
 
