@@ -1,5 +1,7 @@
 # Auth Inbox
 
+[English](https://github.com/TooonyChen/AuthInbox/blob/main/README.md) | [中文](https://github.com/TooonyChen/AuthInbox/blob/main/README_CN.md)
+
 **Auth Inbox** is an open-source project that securely manages and views authentication emails using [Cloudflare](https://cloudflare.com/)'s free services, so you don't need to set up your own servers. It automatically processes incoming emails, extracts verification codes or links, and stores them in a database. A user-friendly web interface is provided for administrators to easily review the extracted information. AuthInbox also supports real-time notifications via Bark, making it a comprehensive and hassle-free solution for email authentication management.
 
 Don't wanna receive ads and spams on your main email? Want a bunch of alternative email for register services and websites? Try this! 
@@ -134,5 +136,6 @@ This project is licensed under the [MIT License](LICENSE).
 - **Google Gemini AI** for enabling intelligent email content extraction.
 - **Bark** for real-time notification capabilities.
 - **Open Source Community** for inspiring and supporting projects like AuthInbox.
+- **ChatGPT** for helping me writing some of the code.
 
 ---
