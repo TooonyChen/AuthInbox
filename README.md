@@ -45,8 +45,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
    ```bash
    npm install wrangler -g
    ```
-   Create a [Google AI Studio API](https://aistudio.google.com/)
-   Have a domain binded on your [Cloudflare](https://dash.cloudflare.com/) account
+   Create a [Google AI Studio API](https://aistudio.google.com/) and have a domain binded on your [Cloudflare](https://dash.cloudflare.com/) account
 
 2. **Initialization**
 
