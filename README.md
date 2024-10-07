@@ -1,4 +1,4 @@
-# Auth Inbox
+# Auth Inbox 📬
 
 [English](https://github.com/TooonyChen/AuthInbox/blob/main/README.md) | [中文](https://github.com/TooonyChen/AuthInbox/blob/main/README_CN.md)
 
@@ -8,7 +8,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 
 ---
 
-## Table of Contents
+## Table of Contents 📑
 
 - [Features](#features)
 - [Technologies Used](#technologies-used)
@@ -18,7 +18,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 
 ---
 
-## Features
+## Features ✨
 
 - **Email Processing**: Automatically captures and stores incoming emails.
 - **Code Extraction**: Utilizes AI to extract verification codes, links, and organization names from emails.
@@ -28,7 +28,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 
 ---
 
-## Technologies Used
+## Technologies Used 🛠️
 
 - **Cloudflare Workers**: Serverless platform for handling email processing and web requests.
 - **Cloudflare D1**: Cloudflare's serverless SQL database for storing email data.
@@ -40,7 +40,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 
 ---
 
-## Installation
+## Installation ⚙️
 0. **Prerequisites**
 
    Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
@@ -96,7 +96,7 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    database_name = "inbox-d1" # Copy from step 2
    database_id = "<unique-ID-for-your-database>" # Copy from step 2
    ```
-4. **Deploy your own worker**
+4. **Deploy your own worker** 🌐
    Deploy your Worker to make your project accessible on the Internet. Run:
    ```bash
    npx wrangler deploy
@@ -106,31 +106,31 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    Outputs: https://auth-inbox.<YOUR_SUBDOMAIN>.workers.dev
    ```
    You can now visit the URL for your newly depolyed Auth Inbox for checking the email results.
-5. **Set Email Forwarding**
+5. **Set Email Forwarding** ✉️
    Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<your-domain>` -> `Email` -> `Email-Routing` -> `Routing Rules`
    if you want to use `catch-all address`:
    ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
    if you want to use `custom address`:
    ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
-6. **Done**
+6. **Done**✅
    All set! Try it now!
 
    
 ---
 
-## License
+## License 📜
 
 This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## Screenshots
+## Screenshots 📸
 
 ![image](https://github.com/user-attachments/assets/2a93c9a7-0fd9-404b-9bce-83a458f1c66e)
 
 ---
 
-## Acknowledgements
+## Acknowledgements 🙏
 
 - **Cloudflare Workers** for providing a powerful serverless platform.
 - **Google Gemini AI** for enabling intelligent email content extraction.
