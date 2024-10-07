@@ -4,7 +4,7 @@
 
 **Auth Inbox** is an open-source project that securely manages and views authentication emails using [Cloudflare](https://cloudflare.com/)'s free services, so you don't need to set up your own servers. It automatically processes incoming emails, extracts verification codes or links, and stores them in a database. A user-friendly web interface is provided for administrators to easily review the extracted information. AuthInbox also supports real-time notifications via Bark, making it a comprehensive and hassle-free solution for email authentication management.
 
-Don't wanna receive ads and spams on your main email? Want a bunch of alternative email for register services and websites? Try this! 
+Don't wanna receive ads and spams on your main email? Want a bunch of alternative email for register services and websites? Try this!
 
 ---
 
@@ -82,11 +82,11 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    ```toml
    name = "auth-inbox"
    type = "typescript"
-   
+
    [vars]
    UseBark = 'true' # set 'true' to use or 'false' to not use
    barkUrl = "https://api.day.app"
-   barkTokens = 'xxxxxxxxx' # set to your bark tokens on your iOS device, download it from https://bark.day.app/
+   barkTokens = '['token1', 'token2']' # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '['token1']'
    FrontEndAdminID = 'admin' # your login
    FrontEndAdminPassword = 'password' # your password
    GoogleAPIKey = 'xxxxxxxxxxx' # your google api, go to https://aistudio.google.com/ to generate one if u dont have
@@ -115,7 +115,7 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
 6. **Done**✅
    All set! Try it now!
 
-   
+
 ---
 
 ## License 📜

@@ -85,11 +85,11 @@
    ```toml
    name = "auth-inbox"
    type = "typescript"
-   
+
    [vars]
    UseBark = 'true' # 设置为 'true' 启用 Bark，设置为 'false' 禁用
    barkUrl = "https://api.day.app"
-   barkTokens = 'xxxxxxxxx' # 填写你 iOS 设备上的 Bark tokens，可从 https://bark.day.app/ 下载应用获取
+   barkTokens = '['token1', 'token2']' # 填写你 iOS 设备上的 Bark tokens，可从 https://bark.day.app/ 下载应用获取，可以填写多个。如果你只想用一个，那么填写 '['token1']'
    FrontEndAdminID = 'admin' # 你的登录 ID
    FrontEndAdminPassword = 'password' # 你的登录密码
    GoogleAPIKey = 'xxxxxxxxxxx' # 你的 Google API key，如果没有可以前往 https://aistudio.google.com/ 生成一个
@@ -114,9 +114,9 @@
 
 5. **设置邮件转发**
 
-   前往 [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<你的域名>` -> `Email` -> `Email-Routing` -> `Routing Rules`  
+   前往 [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<你的域名>` -> `Email` -> `Email-Routing` -> `Routing Rules`
    如果你想使用“接收所有地址”：
-   ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)  
+   ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
    如果你想使用“自定义地址”：
    ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
 
