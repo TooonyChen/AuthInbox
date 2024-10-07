@@ -140,10 +140,6 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-Here's the updated version with the TODO section:
-
----
-
 ## TODO 📝
 
 - [ ] **Multi-User Support**: Add functionality to manage multiple users for increased flexibility and broader usage.
