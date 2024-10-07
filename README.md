@@ -85,7 +85,7 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    [vars]
    UseBark = 'true' # set 'true' to use or 'false' to not use
    barkUrl = "https://api.day.app"
-   barkTokens = 'xxxxxxxxx' # set to your bark tokens on your iOS device
+   barkTokens = 'xxxxxxxxx' # set to your bark tokens on your iOS device, download it from https://bark.day.app/
    FrontEndAdminID = 'admin' # your login
    FrontEndAdminPassword = 'password' # your password
    GoogleAPIKey = 'xxxxxxxxxxx' # your google api, go to https://aistudio.google.com/ to generate one if u dont have
