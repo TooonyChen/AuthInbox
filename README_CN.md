@@ -1,6 +1,6 @@
 # Auth Inbox 验证邮局 📬
 
-[English](https://github.com/TooonyChen/AuthInbox/blob/main/README.md) | [中文](https://github.com/TooonyChen/AuthInbox/blob/main/README_CN.md)
+[English](https://github.com/TooonyChen/AuthInbox/blob/main/README.md) | [简体中文](https://github.com/TooonyChen/AuthInbox/blob/main/README_CN.md)
 
 **Auth Inbox** 是一个自建的开源多邮箱验证码管理平台，基于 [Cloudflare](https://cloudflare.com/) 的免费服务。它可以自动处理收到的邮件，提取验证码或链接，并将其存储在数据库中。管理员可以通过一个用户友好的网页界面轻松查看提取的信息。AuthInbox 还支持通过 Bark 进行实时通知，使其成为一个全面且省心的邮件认证管理解决方案。
 
