@@ -6,6 +6,9 @@
 
 Don't wanna receive ads and spams on your main email? Want a bunch of alternative email for register services and websites? Try this!
 
+
+![Framework](https://github.com/user-attachments/assets/f583591a-b103-4813-87b5-81d791f3e651)
+
 ---
 
 ## Table of Contents 📑
