@@ -31,7 +31,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 ## Technologies Used
 
 - **Cloudflare Workers**: Serverless platform for handling email processing and web requests.
-- **D1Database**: Cloudflare's serverless SQL database for storing email data.
+- **Cloudflare D1**: Cloudflare's serverless SQL database for storing email data.
 - **TypeScript**: Strongly typed programming language for robust and maintainable code.
 - **Google AI Studio API**: Utilized for extracting relevant information from emails.
 - **Bark API**: Optional integration for sending real-time notifications.
