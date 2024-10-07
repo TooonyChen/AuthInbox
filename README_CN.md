@@ -143,9 +143,8 @@
 - 感谢 **Cloudflare Workers** 提供强大的无服务器平台。
 - 感谢 **Google Gemini AI** 提供智能的邮件内容提取功能。
 - 感谢 **Bark** 提供实时通知能力。
-- 感谢 **开源社区** 为像 AuthInbox 这样的项目提供灵感和支持。
+- 感谢 **开源社区** 为像 Auth Inbox 这样的项目提供灵感和支持。
 - 感谢 **ChatGPT** 协助我写代码
 
 ---
 
-</step3_refined_translation>
