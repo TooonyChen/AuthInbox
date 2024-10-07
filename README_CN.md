@@ -1,4 +1,4 @@
-# Auth Inbox
+# Auth Inbox 验证邮局 📬
 
 [English](https://github.com/TooonyChen/AuthInbox/blob/main/README.md) | [中文](https://github.com/TooonyChen/AuthInbox/blob/main/README_CN.md)
 
