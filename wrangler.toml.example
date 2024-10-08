@@ -3,6 +3,10 @@ name = "auth-inbox"
 main = "src/index.ts"
 compatibility_date = "2024-10-04"
 compatibility_flags = ["nodejs_compat"]
+# If you want to use a custom domain, you need to add routes configuration
+#routes = [
+# { pattern = "temp-email-api.xxxxx.xyz", custom_domain = true },
+#]
 
 # Workers Logs
 # Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
