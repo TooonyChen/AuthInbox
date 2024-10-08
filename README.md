@@ -129,7 +129,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
       6. Find the `delete all logs` button in the upper-right corner of the workflow logs page. Delete the logs to avoid data leakage.
 
-      7. Done! ✅ You can now visit the URL for your newly deployed Auth Inbox to check the email results.
+      7. Done! ✅ Jump to step 3: Set Email Forwarding.
 
 
 2. **Install using command-line**
