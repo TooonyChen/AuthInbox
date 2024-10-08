@@ -47,11 +47,16 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 ## Installation ⚙️
 0. **Prerequisites**
 
-   Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
+   1. Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
    ```bash
    npm install wrangler -g
    ```
-   Create a [Google AI Studio API](https://aistudio.google.com/) and have a domain binded on your [Cloudflare](https://dash.cloudflare.com/) account
+   
+   2. Create a [Google AI Studio API](https://aistudio.google.com/)
+
+   3. Bind a domain to your [Cloudflare](https://dash.cloudflare.com/) account
+
+   4. (Optional) Download the [Bark App](https://bark.day.app/) and get a Bark Token from the App
 
 2. **Initialization**
 
