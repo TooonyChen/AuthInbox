@@ -45,10 +45,8 @@ jobs:
       # 步骤 5: 部署 Backend Worker
       - name: Deploy Backend for ${{ github.ref_name }}
         run: |
-          # 进入 worker 目录
-          cd worker/
 
-          # 将 wrangler.toml 写入 worker/ 目录
+          # 将 secrets.TOML 写入 wrangler.toml 文件
           echo "${{ secrets.TOML }}" > wrangler.toml
 
           # 安装 worker 依赖
