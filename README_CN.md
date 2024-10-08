@@ -49,13 +49,18 @@
 
 0. **先决条件**
 
-   安装 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
+   1. 安装 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
    ```bash
    npm install wrangler -g
    ```
-   创建一个 [Google AI Studio API](https://aistudio.google.com/) 并且在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
+   
+   2. 创建一个 [Google AI Studio API](https://aistudio.google.com/)
 
-1. **初始化**
+   3. 在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
+  
+   4. （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
+
+2. **初始化**
 
    ```bash
    git clone https://github.com/TooonyChen/AuthInbox.git
@@ -63,7 +68,7 @@
    npm install
    ```
 
-2. **创建 d1 数据库**
+3. **创建 d1 数据库**
 
    当你第一次执行 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/) 登录命令时，系统会提示你登录。按提示操作即可。
 
@@ -81,7 +86,7 @@
    ```
    请从终端复制结果，你将在下一步中使用它们。
 
-3. **配置环境变量**
+4. **配置环境变量**
 
 使用项目根目录下的 `wrangler.toml` 文件，并添加所需的环境变量：
 
