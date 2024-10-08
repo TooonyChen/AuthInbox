@@ -35,7 +35,7 @@ barkUrl = "https://api.day.app" # set to your bark url, default is 'https://api.
 # set to your bark url, default is 'https://api.day.app'
 # 设定你的 bark 推送地址，默认为 'https://api.day.app'
 
-#barkTokens = "[token1, token2]"
+barkTokens = "[token1, token2]"
 # barkTokens: String
 # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
 # if you don't use bark push, then no need to change
@@ -47,13 +47,13 @@ FrontEndAdminID = "admin"
 # your login **Please change it to your own login**
 # 你的登录账号 **请更改为你自己的登录账号**
 
-#FrontEndAdminPassword = "password"
+FrontEndAdminPassword = "password"
 # FrontEndAdminPassword: String
 # your password **Please change it to your own password**
 # 你的登录密码 **请更改为你自己的登录密码**
 
 
-#GoogleAPIKey = "xxxxxxxxxxx"
+GoogleAPIKey = "xxxxxxxxxxx"
 # GoogleAPIKey: String
 # your google AI API, you can have one from https://aistudio.google.com
 # 你的谷歌AI API，你可以从 https://aistudio.google.com 获取
