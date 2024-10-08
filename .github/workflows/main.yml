@@ -49,6 +49,9 @@ jobs:
           # 将 secrets.TOML 写入 wrangler.toml 文件
           echo "${{ secrets.TOML }}" > wrangler.toml
 
+          # 测试
+          cat wrangler.toml
+
           # 安装 worker 依赖
           npm install
 
