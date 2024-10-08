@@ -237,4 +237,6 @@ If there is no code, clickable link, or this is an advertisement email, return:
 - [ ] **多用户支持**：增加管理多用户的功能，以提高灵活性并扩展使用范围。
 - [ ] **增强前端设计**：改进网页界面的UI/UX设计，使其更加现代化和用户友好。
 - [ ] **API**: 添加API接口。
+- [ ] **发送邮件**：添加发送邮件功能。
+- [ ] **更多通知方式**：支持更多通知方式，如邮件、Slack等。
 

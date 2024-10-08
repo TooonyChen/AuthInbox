@@ -239,5 +239,7 @@ This project is licensed under the [MIT License](LICENSE).
 - [ ] **Multi-User Support**: Add functionality to manage multiple users for increased flexibility and broader usage.
 - [ ] **Enhance Front-End Design**: Improve the UI/UX of the web interface for a more modern and user-friendly experience.
 - [ ] **API**: Add API functionality.
+- [ ] **Sending Email**: Add the ability to send emails.
+- [ ] *More Notification Methods**: Support additional notification methods such as email, Slack, etc.
 
 ---
