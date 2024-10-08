@@ -1,28 +1,72 @@
-            - name: Deploy to Cloudflare Workers with Wrangler
-  # You may pin to the exact commit or the version.
-  # uses: cloudflare/wrangler-action@c25aadc9657b0cdc4786c04e59a6fe92765a783b
-  uses: cloudflare/wrangler-action@v3.1.0
-  with:
-    # Your Cloudflare API Token
-    apiToken: # optional
-    # Your Cloudflare Account ID
-    accountId: # optional
-    # Supresses output from Wrangler commands, defaults to `false`
-    quiet: # optional, default is false
-    # The environment you'd like to deploy your Workers project to - must be defined in wrangler.toml
-    environment: # optional
-    # The relative path which Wrangler commands should be run from
-    workingDirectory: # optional
-    # The version of Wrangler you'd like to use to deploy your Workers project
-    wranglerVersion: # optional
-    # A string of environment variable names, separated by newlines. These will be bound to your Worker as Secrets and must match the names of environment variables declared in `env` of this workflow.
-    secrets: # optional
-    # Commands to execute before deploying the Workers project
-    preCommands: # optional
-    # Commands to execute after deploying the Workers project
-    postCommands: # optional
-    # The Wrangler command (along with any arguments) you wish to run. Multiple Wrangler commands can be run by separating each command with a newline. Defaults to `"deploy"`.
-    command: # optional
-    # A string of environment variable names, separated by newlines. These will be bound to your Worker using the values of matching environment variables declared in `env` of this workflow.
-    vars: # optional
-          
+name: Deploy Auth Inbox to Cloudflare Workers
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    name: Deploy Auth Inbox Worker
+    steps:
+      # 步骤 1: 检出代码
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 步骤 2: 设置 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # 根据您的项目需求选择 Node.js 版本
+
+      # 步骤 3: 安装依赖项
+      - name: Install Dependencies
+        run: npm install
+
+      # 步骤 4: 部署主 Worker
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # 如果您的项目位于仓库的子目录，请取消注释并设置 workingDirectory
+          # workingDirectory: "path/to/subdirectory"
+          # 如果需要安装特定版本的 Wrangler，请取消注释并设置 wranglerVersion
+          # wranglerVersion: "2.20.0"
+          # 如果有自定义命令，如构建步骤，请使用 preCommands
+          # preCommands: npm install && npm run build
+          # 如果需要在部署后执行命令，请使用 postCommands
+          # postCommands: |
+          #   echo "Deployment completed."
+
+      # 步骤 5: 部署 Backend Worker
+      - name: Deploy Backend for ${{ github.ref_name }}
+        run: |
+          # 进入 worker 目录
+          cd worker/
+
+          # 将 wrangler.toml 写入 worker/ 目录
+          echo "${{ secrets.TOML }}" > wrangler.toml
+
+          # 安装 worker 依赖
+          npm install
+
+          # 运行部署命令
+          output=$(npm run deploy 2>&1)
+
+          # 检查部署命令是否成功
+          if [ $? -ne 0 ]; then
+              code=$?
+              echo "Command failed with exit code $code"
+              echo "Deployment Output:"
+              echo "$output"
+              exit $code
+          fi
+
+          echo "Deployed for tag ${{ github.ref_name }}"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
