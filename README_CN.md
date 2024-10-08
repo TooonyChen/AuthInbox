@@ -2,7 +2,7 @@
 
 [English](https://github.com/TooonyChen/AuthInbox/blob/main/README.md) | [简体中文](https://github.com/TooonyChen/AuthInbox/blob/main/README_CN.md)
 
-**Auth Inbox** 是一个自建的开源多邮箱验证码管理平台，基于 [Cloudflare](https://cloudflare.com/) 的免费服务。它可以自动处理收到的邮件，提取验证码或链接，并将其存储在数据库中。管理员可以通过一个用户友好的网页界面轻松查看提取的信息。AuthInbox 还支持通过 Bark 进行实时通知，使其成为一个全面且省心的邮件认证管理解决方案。
+**Auth Inbox** 是一个自建的开源多邮箱验证码的接码平台，基于 [Cloudflare](https://cloudflare.com/) 的免费服务。它可以自动处理收到的邮件，提取验证码或链接，并将其存储在数据库中。管理员可以通过一个用户友好的网页界面轻松查看提取的信息。AuthInbox 还支持通过 Bark 进行实时通知，使其成为一个全面且省心的邮件认证管理解决方案。
 
 不想在主邮箱中收到广告和垃圾邮件？想要多个备用邮箱用于注册服务和网站？试试这个吧！
 
@@ -11,7 +11,7 @@
 
 ---
 
-## 目录
+## 目录 📑
 
 - [功能](#features)
 - [使用技术](#technologies-used)
@@ -21,7 +21,7 @@
 
 ---
 
-## 功能
+## 功能 ✨
 
 - **邮件处理**：自动捕获和存储收到的邮件。
 - **验证码提取**：利用 AI 从邮件中提取验证码、链接和组织名称。
@@ -31,7 +31,7 @@
 
 ---
 
-## 使用技术
+## 使用技术 🛠️
 
 - **Cloudflare Workers 无服务器平台**：用于处理邮件和网页请求的平台。
 - **Cloudflare D1**：Cloudflare 提供的无服务器 SQL 数据库，用于存储邮件数据。
@@ -45,7 +45,7 @@
 
 ---
 
-## 安装
+## 安装 ⚙️
 
 0. **先决条件**
 
@@ -103,7 +103,7 @@
    database_id = "<你的数据库的唯一ID>" # 从步骤 2 中复制
    ```
 
-4. **部署你的 worker**
+4. **部署你的 worker** 🌐
 
    部署你的 Worker 以使项目在互联网上可访问。运行以下命令：
    ```bash
@@ -115,7 +115,7 @@
    ```
    你现在可以访问该 URL 来查看你部署的 Auth Inbox 的邮件结果。
 
-5. **设置邮件转发**
+5. **设置邮件转发** ✉️
 
    前往 [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<你的域名>` -> `Email` -> `Email-Routing` -> `Routing Rules`
    如果你想使用“接收所有地址”：
@@ -123,25 +123,25 @@
    如果你想使用“自定义地址”：
    ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
 
-6. **完成**
+6. **完成**✅
 
    一切设置完毕！现在可以试试了！
 
 ---
 
-## 许可证
+## 许可证 📜
 
 本项目基于 [MIT License](LICENSE) 许可证。
 
 ---
 
-## 截图
+## 截图 📸
 
 ![image](https://github.com/user-attachments/assets/2a93c9a7-0fd9-404b-9bce-83a458f1c66e)
 
 ---
 
-## 鸣谢
+## 鸣谢 🙏
 
 - 感谢 **Cloudflare Workers** 提供强大的无服务器平台。
 - 感谢 **Google Gemini AI** 提供智能的邮件内容提取功能。
@@ -150,4 +150,9 @@
 - 感谢 **ChatGPT** 协助我写代码
 
 ---
+## TODO 📝
+- [ ] **多用户支持**：增加管理多用户的功能，以提高灵活性并扩展使用范围。
+- [ ] **增强前端设计**：改进网页界面的UI/UX设计，使其更加现代化和用户友好。
+
+- [ ] **API**: 添加API接口。
 
