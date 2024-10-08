@@ -149,7 +149,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 		```bash
 		npx npx wrangler d1 create inbox-d1 # creating a d1 database called 'inbox-d1'
-		npx wrangler d1 execute inbox-d1 --local --file=./db/schema.sql # write the schema.sql to the database
+		npx wrangler d1 execute inbox-d1 --remote --file=./db/schema.sql # write the schema.sql to the database
 		```
 		you will get the result like this:
 		```bash

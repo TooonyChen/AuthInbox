@@ -147,7 +147,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
       ```bash
       npx wrangler d1 create inbox-d1 # 创建名为 'inbox-d1' 的 d1 数据库
-      npx wrangler d1 execute inbox-d1 --local --file=./db/schema.sql # 执行 schema.sql 文件
+      npx wrangler d1 execute inbox-d1 --remote --file=./db/schema.sql # 执行 schema.sql 文件
       ```
       你将会看到如下结果：
       ```bash
