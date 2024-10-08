@@ -28,7 +28,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 - **Code Extraction**: Utilizes AI to extract verification codes, links, and organization names from emails.
 - **Secure Front-End**: Provides a web interface protected by Basic Access Authentication for viewing extracted codes.
 - **Real-Time Notifications**: Optionally sends notifications via Bark when new codes are extracted.
-- **Database Integration**: Stores raw and processed email data in a D1Database.
+- **Database Integration**: Stores raw and processed email data in a Cloudflare D1 Database.
 
 ---
 
@@ -37,10 +37,45 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 - **Cloudflare Workers**: Serverless platform for handling email processing and web requests.
 - **Cloudflare D1**: Cloudflare's serverless SQL database for storing email data.
 - **TypeScript**: Strongly typed programming language for robust and maintainable code.
-- **Google AI Studio API**: Utilized for extracting relevant information from emails.
+- **Google AI Studio API**: Utilized for extracting relevant information from emails with optimized AI prompts to enhance data accuracy and reliability.
+- **AI Prompt Optimization**: Custom-crafted prompts ensure precise extraction of titles, codes, and topics from varied email formats.
 - **Bark API**: Optional integration for sending real-time notifications.
 - **HTML/CSS**: Front-end interface with responsive and modern design.
-- **Google Fonts**: Enhances the visual appeal of the web interface with consistent typography.
+
+---
+
+## AI Prompt Optimization 🧠
+
+To ensure accurate extraction of information from incoming emails, we've implemented AI prompt optimization using the Google AI Studio API. By crafting precise and context-aware prompts, the AI can reliably identify and extract key elements such as:
+
+- **Organization Name (Title)**: Identifies the sender's organization or company.
+- **Verification Code/Link**: Extracts codes, links, or passwords necessary for account verification.
+- **Email Topic**: Summarizes the main purpose of the email, such as 'account verification' or 'password reset'.
+
+**Prompt:**
+```plaintext
+Email content: [Insert raw email content here].
+
+Please read the email and extract the following information:
+1. Code/Link/Password from the email (if available).
+2. Organization name (title) from which the email is sent.
+3. A brief summary of the email's topic (e.g., 'account verification').
+
+Format the output as JSON with this structure:
+{
+  "title": "The organization or company that sent the verification code (e.g., 'Netflix')",
+  "code": "The extracted verification code, link, or password (e.g., '123456' or 'https://example.com/verify?code=123456')",
+  "topic": "A brief summary of the email's topic (e.g., 'account verification')",
+  "codeExist": 1
+}
+
+If both a code and a link are present, include both in the 'code' field like this:
+"code": "code, link"
+
+If there is no code, clickable link, or this is an advertisement email, return:
+{
+  "codeExist": 0
+}
 
 ---
 
