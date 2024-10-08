@@ -102,6 +102,6 @@
 	},
 	"exclude": ["test"],
 	"include": ["worker-configuration.d.ts",
-      "worker/**/*.ts"
+		"src/**/*.ts"
     ]
 }
