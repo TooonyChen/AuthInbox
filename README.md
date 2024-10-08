@@ -119,6 +119,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 
 2. Install using command-line
+
 	0. **Prerequisites**
 
 	   1. Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
