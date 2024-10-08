@@ -7,6 +7,9 @@
 Don't wanna receive ads and spams on your main email? Want a bunch of alternative email for register services and websites? Try this **secure**, **serverless**, **light** service!
 
 
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
+
+
 ![Framework](https://github.com/user-attachments/assets/3459c921-0a2f-4788-ab12-fe199fb44974)
 
 
@@ -81,88 +84,125 @@ If there is no code, clickable link, or this is an advertisement email, return:
 ---
 
 ## Installation ⚙️
-0. **Prerequisites**
+1. Install using Github Pages
 
-   1. Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
-   ```bash
-   npm install wrangler -g
-   ```
+   1. Creating D1 Database
 
-   2. Create a [Google AI Studio API](https://aistudio.google.com/)
+      1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Workers & Pages` -> `D1 SQL Database` -> `Create`
 
-   3. Bind a domain to your [Cloudflare](https://dash.cloudflare.com/) account
+      2. Input Name `inbox-d1` and click `Create`
 
-   4. (Optional) Download the [Bark App](https://bark.day.app/) and get a Bark Token from the App
+      3. After Creating `inbox-d1`, click in to it and find `Console`
 
-2. **Initialization**
+      4. Execute the following SQL command from [db/schema.sql](https://github.com/TooonyChen/AuthInbox/blob/main/db/schema.sql) in the console, just copy, paste and execute it.
 
-   ```bash
-   git clone https://github.com/TooonyChen/AuthInbox.git
-   cd AuthInbox
-   npm install
-   ```
+      5. Copy the `database_id` and `database_name` for the next step when you configure the `TOML` file
 
-3. **create d1 database**
+   2. Deploy the Cloudflare Worker
 
-   When you execute the [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/) login command for the first time, you will be prompted to log in. Just follow the prompts.
+   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
-   ```bash
-   npx wrangler d1 execute inbox-d1 --local --file=./schema.sql # creating a d1 database called 'inbox-d1'
-   ```
-   you will get the result like this:
-   ```bash
-   ✅ Successfully created DB 'inbox-d1'
+      1. Click the button on the top to fork this repository or directly fork this repository.
 
-   [[d1_databases]]
-   binding = "DB" # available in your Worker on env.DB
-   database_name = "inbox-d1"
-   database_id = "<unique-ID-for-your-database>"
-   ```
-   please copy the result from your terminal, you will use them in the next step
+      2. Open the repository that you fork, find the `Actions` page, find `Deploy Auth Inbox to Cloudflare Workers`, and click `enable workflow` to activate the workflows.
 
-4. **Configure Environment Variables**
+      3. Then, in the repository page, navigate to `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets` and add the following secrets:
+         - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID.
+         - `CLOUDFLARE_API_TOKEN`: Cloudflare API Token.
+         - `TOML`: configuration file, refer to [wrangler.toml](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example).
 
-Use `wrangler.toml` file in the project root with the necessary environment variables:
+      4. Back to `Action` Page in your repository, find `Deploy Auth Inbox to Cloudflare Workers` and press `Run workflow` to deploy the worker.
 
-   ```toml
-   name = "auth-inbox"
-   type = "typescript"
+      5. After the deployment is successful, you can find the URL of your worker in the `Deploy Auth Inbox to Cloudflare Workers` workflow log.
 
-   [vars]
-   UseBark = "true" # set 'true' to use or 'false' to not use
-   barkUrl = "https://api.day.app"
-   barkTokens = "[token1, token2]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
-   FrontEndAdminID = "admin" # your login
-   FrontEndAdminPassword = "password" # your password
-   GoogleAPIKey = "xxxxxxxxxxx" # your google api, go to https://aistudio.google.com/ to generate one if u dont have
+      6. Done! ✅ You can now visit the URL for your newly deployed Auth Inbox to check the email results.
 
-   [[d1_databases]] # Copy the lines obtained from step 2 from your terminal.
-   binding = "DB"
-   database_name = "inbox-d1" # Copy from step 2
-   database_id = "<unique-ID-for-your-database>" # Copy from step 2
-   ```
-4. **Deploy your own worker** 🌐
-   Deploy your Worker to make your project accessible on the Internet. Run:
-   ```bash
-   npx wrangler deploy
-   ```
-   You will get output like this:
-   ```
-   Outputs: https://auth-inbox.<YOUR_SUBDOMAIN>.workers.dev
-   ```
-   You can now visit the URL for your newly depolyed Auth Inbox for checking the email results.
-5. **Set Email Forwarding** ✉️
-   Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<your-domain>` -> `Email` -> `Email-Routing` -> `Routing Rules`
 
-   if you want to use `catch-all address`:
-   ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
+2. Install using command-line
+	0. **Prerequisites**
 
-   if you want to use `custom address`:
-   ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
+	   1. Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
+	   ```bash
+	   npm install wrangler -g
+	   ```
 
-7. **Done**✅
+	   2. Create a [Google AI Studio API](https://aistudio.google.com/)
 
-   All set! Try it now!
+	   3. Bind a domain to your [Cloudflare](https://dash.cloudflare.com/) account
+
+	   4. (Optional) Download the [Bark App](https://bark.day.app/) and get a Bark Token from the App
+
+	2. **Initialization**
+
+		```bash
+		git clone https://github.com/TooonyChen/AuthInbox.git
+		cd AuthInbox
+		npm install
+		```
+
+	3. **create d1 database**
+
+		When you execute the [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/) login command for the first time, you will be prompted to log in. Just follow the prompts.
+
+		```bash
+		npx wrangler d1 execute inbox-d1 --local --file=./schema.sql # creating a d1 database called 'inbox-d1'
+		```
+		you will get the result like this:
+		```bash
+		✅ Successfully created DB 'inbox-d1'
+
+		[[d1_databases]]
+		binding = "DB" # available in your Worker on env.DB
+		database_name = "inbox-d1"
+		database_id = "<unique-ID-for-your-database>"
+		```
+		please copy the result from your terminal, you will use them in the next step
+
+	4. **Configure Environment Variables**
+
+		Use `wrangler.toml` file in the project root with the necessary environment variables:
+
+		```toml
+		name = "auth-inbox"
+		type = "typescript"
+
+		[vars]
+		UseBark = "true" # set 'true' to use or 'false' to not use
+		barkUrl = "https://api.day.app"
+		barkTokens = "[token1, token2]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
+		FrontEndAdminID = "admin" # your login
+		FrontEndAdminPassword = "password" # your password
+		GoogleAPIKey = "xxxxxxxxxxx" # your google api, go to https://aistudio.google.com/ to generate one if u dont have
+
+		[[d1_databases]] # Copy the lines obtained from step 2 from your terminal.
+		binding = "DB"
+		database_name = "inbox-d1" # Copy from step 2
+		database_id = "<unique-ID-for-your-database>" # Copy from step 2
+		```
+
+	5. **Deploy your own worker** 🌐
+	   Deploy your Worker to make your project accessible on the Internet. Run:
+	   ```bash
+	   npx wrangler deploy
+	   ```
+	   You will get output like this:
+	   ```
+	   Outputs: https://auth-inbox.<YOUR_SUBDOMAIN>.workers.dev
+	   ```
+	   You can now visit the URL for your newly depolyed Auth Inbox for checking the email results.
+
+    6. **Set Email Forwarding** ✉️
+       Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<your-domain>` -> `Email` -> `Email-Routing` -> `Routing Rules`
+
+       if you want to use `catch-all address`:
+       ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
+
+       if you want to use `custom address`:
+       ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
+
+    7. **Done**✅
+
+       All set! Try it now!
 
 
 ---

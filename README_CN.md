@@ -83,49 +83,83 @@ If there is no code, clickable link, or this is an advertisement email, return:
 ---
 
 ## 安装 ⚙️
+1. 使用 Github Pages 进行安装
 
-0. **先决条件**
+	1. 创建 D1 数据库
 
-   1. 安装 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
-   ```bash
-   npm install wrangler -g
-   ```
+		1. 进入 [Cloudflare 仪表盘](https://dash.cloudflare.com/) -> `Workers & Pages` -> `D1 SQL Database` -> `Create`
 
-   2. 创建一个 [Google AI Studio API](https://aistudio.google.com/)
+		2. 输入名称 `inbox-d1` 并点击 `Create`
 
-   3. 在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
+		3. 创建 `inbox-d1` 后，点击进入并找到 `Console`
 
-   4. （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
+		4. 在控制台中执行 [db/schema.sql](https://github.com/TooonyChen/AuthInbox/blob/main/db/schema.sql) 中的 SQL 命令，直接复制、粘贴并执行它。
 
-2. **初始化**
+		5. 复制 `database_id` 和 `database_name`，用于下一步配置 `TOML` 文件时使用
 
-   ```bash
-   git clone https://github.com/TooonyChen/AuthInbox.git
-   cd AuthInbox
-   npm install
-   ```
+	2. 部署 Cloudflare Worker
 
-3. **创建 d1 数据库**
+   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
-   当你第一次执行 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/) 登录命令时，系统会提示你登录。按提示操作即可。
+	1. 点击上方按钮 fork 此仓库，或直接 fork 此仓库。
 
-   ```bash
-   npx wrangler d1 execute inbox-d1 --local --file=./schema.sql # 创建名为 'inbox-d1' 的 d1 数据库
-   ```
-   你将会看到如下结果：
-   ```bash
-   ✅ Successfully created DB 'inbox-d1'
+	2. 打开你 fork 的仓库，找到 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并点击 `enable workflow` 激活 workflow。
 
-   [[d1_databases]]
-   binding = "DB" # 在你的 Worker 中通过 env.DB 访问
-   database_name = "inbox-d1"
-   database_id = "<你的数据库的唯一ID>"
-   ```
-   请从终端复制结果，你将在下一步中使用它们。
+	3. 然后，在仓库页面中，导航到 `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`，并添加以下 secrets：
+		- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 账户 ID。
+		- `CLOUDFLARE_API_TOKEN`: Cloudflare API Token。
+		- `TOML`: 配置文件，参考 [wrangler.toml](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example)。
 
-4. **配置环境变量**
+	4. 返回你仓库的 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并按 `Run workflow` 来部署 worker。
 
-使用项目根目录下的 `wrangler.toml` 文件，并添加所需的环境变量：
+	5. 部署成功后，你可以在 `Deploy Auth Inbox to Cloudflare Workers` 的 workflow 日志中找到你的 worker URL。
+
+	6. 完成！✅ 你现在可以访问你的新部署的 Auth Inbox URL，查看电子邮件结果。
+
+2. 使用 Wrangler 命令行部署到 Cloudflare Workers
+
+   0. **先决条件**
+
+      1. 安装 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
+      ```bash
+      npm install wrangler -g
+      ```
+
+      2. 创建一个 [Google AI Studio API](https://aistudio.google.com/)
+
+      3. 在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
+
+      4. （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
+
+   1. **初始化**
+
+      ```bash
+      git clone https://github.com/TooonyChen/AuthInbox.git
+      cd AuthInbox
+      npm install
+      ```
+
+   2. **创建 d1 数据库**
+
+      当你第一次执行 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/) 登录命令时，系统会提示你登录。按提示操作即可。
+
+      ```bash
+      npx wrangler d1 execute inbox-d1 --local --file=./schema.sql # 创建名为 'inbox-d1' 的 d1 数据库
+      ```
+      你将会看到如下结果：
+      ```bash
+      ✅ Successfully created DB 'inbox-d1'
+
+      [[d1_databases]]
+      binding = "DB" # 在你的 Worker 中通过 env.DB 访问
+      database_name = "inbox-d1"
+      database_id = "<你的数据库的唯一ID>"
+      ```
+      请从终端复制结果，你将在下一步中使用它们。
+
+   3. **配置环境变量**
+
+   使用项目根目录下的 `wrangler.toml` 文件，并添加所需的环境变量：
 
    ```toml
    name = "auth-inbox"
@@ -145,7 +179,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
    database_id = "<你的数据库的唯一ID>" # 从步骤 2 中复制
    ```
 
-4. **部署你的 worker** 🌐
+   4. **部署你的 worker** 🌐
 
    部署你的 Worker 以使项目在互联网上可访问。运行以下命令：
    ```bash
@@ -157,19 +191,19 @@ If there is no code, clickable link, or this is an advertisement email, return:
    ```
    你现在可以访问该 URL 来查看你部署的 Auth Inbox 的邮件结果。
 
-5. **设置邮件转发** ✉️
+   5. **设置邮件转发** ✉️
 
-   前往 [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<你的域名>` -> `Email` -> `Email-Routing` -> `Routing Rules`
+      前往 [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<你的域名>` -> `Email` -> `Email-Routing` -> `Routing Rules`
 
-   如果你想使用“接收所有地址”：
-   ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
+      如果你想使用“接收所有地址”：
+      ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
 
-   如果你想使用“自定义地址”：
-   ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
+      如果你想使用“自定义地址”：
+      ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
 
-7. **完成**✅
+   6. **完成**✅
 
-   一切设置完毕！现在可以试试了！
+      一切设置完毕！现在可以试试了！
 
 ---
 
