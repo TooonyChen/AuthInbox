@@ -76,6 +76,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 {
   "codeExist": 0
 }
+```
 
 ---
 
