@@ -99,22 +99,22 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 	2. 部署 Cloudflare Worker
 
-   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
+		[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
-	1. 点击上方按钮 fork 此仓库，或直接 fork 此仓库。**重要：请务必把你的仓库设置为私密！！**
+		1. 点击上方按钮 fork 此仓库，或直接 fork 此仓库。**重要：请务必把你的仓库设置为私密！！**
 
-	2. 打开你 fork 的仓库，找到 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并点击 `enable workflow` 激活 workflow。
+		2. 打开你 fork 的仓库，找到 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并点击 `enable workflow` 激活 workflow。
 
-	3. 然后，在仓库页面中，导航到 `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`，并添加以下 secrets：
-		- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 账户 ID。
-		- `CLOUDFLARE_API_TOKEN`: Cloudflare API Token。
-		- `TOML`: 配置文件，参考 [wrangler.toml](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example)。
+		3. 然后，在仓库页面中，导航到 `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`，并添加以下 secrets：
+			- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 账户 ID。
+			- `CLOUDFLARE_API_TOKEN`: Cloudflare API Token。
+			- `TOML`: 配置文件，参考 [wrangler.toml](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example)。
 
-	4. 返回你仓库的 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并按 `Run workflow` 来部署 worker。
+		4. 返回你仓库的 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并按 `Run workflow` 来部署 worker。
 
-	5. 部署成功后，你可以在 `Deploy Auth Inbox to Cloudflare Workers` 的 workflow 日志中找到你的 worker URL。
+		5. 部署成功后，你可以在 `Deploy Auth Inbox to Cloudflare Workers` 的 workflow 日志中找到你的 worker URL。
 
-	6. 完成！✅ 你现在可以访问你的新部署的 Auth Inbox URL，查看电子邮件结果。
+		6. 完成！✅ 你现在可以访问你的新部署的 Auth Inbox URL，查看电子邮件结果。
 
 2. 使用 Wrangler 命令行部署到 Cloudflare Workers
 
