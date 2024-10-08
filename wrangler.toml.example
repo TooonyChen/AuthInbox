@@ -1,11 +1,16 @@
 #:schema node_modules/wrangler/config-schema.json
+# Your Cloudflare Worker Name
+# 你的 Cloudflare Worker 名称
 name = "auth-inbox"
+
 main = "src/index.ts"
 compatibility_date = "2024-10-04"
 compatibility_flags = ["nodejs_compat"]
+
 # If you want to use a custom domain, you need to add routes configuration.
+# 如果你想使用自定义域名，你需要添加 routes 配置
 #routes = [
-# { pattern = "temp-email-api.xxxxx.xyz", custom_domain = true },
+# { pattern = "email.xxxxx.com", custom_domain = true },
 #]
 
 # Workers Logs
@@ -20,19 +25,54 @@ enabled = true
 # Note: Use secrets to store sensitive data.
 # - https://developers.cloudflare.com/workers/configuration/secrets/
 [vars]
-UseBark = "true" # set to 'true' to use bark, set to 'false' to disable bark
+UseBark = "true"
+# UseBark: String
+# set to 'true' to use bark, set to 'false' to disable bark
+# 是否使用 bark 推送，设置为 'true' 以启用 bark 推送，设置为 'false' 以禁用 bark 推送
+
 barkUrl = "https://api.day.app" # set to your bark url, default is 'https://api.day.app'
-#barkTokens = "[token1, token2]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
-#FrontEndAdminID = "admin" # your login
-#FrontEndAdminPassword = "password" # your password
-#GoogleAPIKey = "xxxxxxxxxxx" # your google api
+# barkUrl: String
+# set to your bark url, default is 'https://api.day.app'
+# 设定你的 bark 推送地址，默认为 'https://api.day.app'
+
+#barkTokens = "[token1, token2]"
+# barkTokens: String
+# set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
+# if you don't use bark push, then no need to change
+# 设定你的 bark tokens，从 https://bark.day.app/ 下载iOS APP，你可以使用多个 tokens，如果你只使用一个 token，那么设置为 '[token1]'
+# 如果你不使用 bark 推送，那么无需改动
+
+FrontEndAdminID = "admin"
+# FrontEndAdminID: String
+# your login **Please change it to your own login**
+# 你的登录账号 **请更改为你自己的登录账号**
+
+#FrontEndAdminPassword = "password"
+# FrontEndAdminPassword: String
+# your password **Please change it to your own password**
+# 你的登录密码 **请更改为你自己的登录密码**
+
+
+#GoogleAPIKey = "xxxxxxxxxxx"
+# GoogleAPIKey: String
+# your google AI API, you can have one from https://aistudio.google.com
+# 你的谷歌AI API，你可以从 https://aistudio.google.com 获取
+
 
 # Bind a D1 database. D1 is Cloudflare’s native serverless SQL database.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#d1-databases
 [[d1_databases]]
-binding = "DB" # i.e. available in your Worker on env.DB
+binding = "DB"
 database_name = "inbox-d1"
-database_id = "********-****-****-****-************" # replace with your database id
+database_id = "********-****-****-****-************"
+# database_id: String
+# replace with your database id
+# 请你替换为你的数据库 ID
+
+# ---------------------------------------------------
+# YOU DONT NEED TO READ THE FOLLOWING COMMENTS
+# 你不需要阅读以下注释
+# ---------------------------------------------------
 
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Worker, running it closer to your back-end infrastructure
