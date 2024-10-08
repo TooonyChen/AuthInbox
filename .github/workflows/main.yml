@@ -26,23 +26,7 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      # 步骤 4: 部署主 Worker
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # 如果您的项目位于仓库的子目录，请取消注释并设置 workingDirectory
-          # workingDirectory: "path/to/subdirectory"
-          # 如果需要安装特定版本的 Wrangler，请取消注释并设置 wranglerVersion
-          # wranglerVersion: "2.20.0"
-          # 如果有自定义命令，如构建步骤，请使用 preCommands
-          # preCommands: npm install && npm run build
-          # 如果需要在部署后执行命令，请使用 postCommands
-          # postCommands: |
-          #   echo "Deployment completed."
-
-      # 步骤 5: 部署 Backend Worker
+      # 步骤 4: 部署 Worker
       - name: Deploy Backend for ${{ github.ref_name }}
         run: |
 
