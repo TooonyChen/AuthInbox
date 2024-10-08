@@ -123,12 +123,14 @@
 5. **设置邮件转发** ✉️
 
    前往 [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<你的域名>` -> `Email` -> `Email-Routing` -> `Routing Rules`
+
    如果你想使用“接收所有地址”：
    ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
+
    如果你想使用“自定义地址”：
    ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
 
-6. **完成**✅
+7. **完成**✅
 
    一切设置完毕！现在可以试试了！
 
