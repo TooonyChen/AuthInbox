@@ -139,7 +139,8 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Screenshots 📸
 
-![image](https://github.com/user-attachments/assets/2a93c9a7-0fd9-404b-9bce-83a458f1c66e)
+![image](https://github.com/user-attachments/assets/ec14d226-ae82-4689-b44d-22850002c34c)
+
 
 ---
 
