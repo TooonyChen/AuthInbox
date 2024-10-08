@@ -121,7 +121,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
       3. Then, in the repository page, navigate to `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets` and add the following secrets:
          - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID.
          - `CLOUDFLARE_API_TOKEN`: Cloudflare API Token.
-         - `TOML`: configuration file, refer to [wrangler.toml](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example).
+         - `TOML`: Configuration file, refer to [wrangler.toml with comments](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example). If you encounter errors with GitHub Actions when using the commented version of wrangler.toml, please use the [version without comments](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear).
 
       4. Back to `Action` Page in your repository, find `Deploy Auth Inbox to Cloudflare Workers` and press `Run workflow` to deploy the worker.
 
