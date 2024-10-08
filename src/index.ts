@@ -104,7 +104,7 @@ export default {
                         <th>To</th>
                         <th>Topic</th>
                         <th>Code/Link</th>
-                        <th>Receive Time</th>
+                        <th>Receive Time (GMT)</th>
                     </tr>
                 `)
 				.replace('{{DATA}}', dataHtml);
