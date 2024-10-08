@@ -10,13 +10,6 @@ compatibility_flags = ["nodejs_compat"]
 [observability]
 enabled = true
 
-# Automatically place your workloads in an optimal location to minimize latency.
-# If you are running back-end logic in a Worker, running it closer to your back-end infrastructure
-# rather than the end user may result in better performance.
-# Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
-# [placement]
-# mode = "smart"
-
 # Variable bindings. These are arbitrary, plaintext strings (similar to environment variables)
 # Docs:
 # - https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
@@ -30,23 +23,6 @@ barkUrl = "https://api.day.app" # set to your bark url, default is 'https://api.
 #FrontEndAdminPassword = "password" # your password
 #GoogleAPIKey = "xxxxxxxxxxx" # your google api
 
-
-
-# Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
-# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
-# [ai]
-# binding = "AI"
-
-# Bind an Analytics Engine dataset. Use Analytics Engine to write analytics within your Pages Function.
-# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#analytics-engine-datasets
-# [[analytics_engine_datasets]]
-# binding = "MY_DATASET"
-
-# Bind a headless browser instance running on Cloudflare's global network.
-# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#browser-rendering
-# [browser]
-# binding = "MY_BROWSER"
-
 # Bind a D1 database. D1 is Cloudflare’s native serverless SQL database.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#d1-databases
 [[d1_databases]]
@@ -54,7 +30,12 @@ binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "inbox-d1"
 database_id = "********-****-****-****-************" # replace with your database id
 
-
+# Automatically place your workloads in an optimal location to minimize latency.
+# If you are running back-end logic in a Worker, running it closer to your back-end infrastructure
+# rather than the end user may result in better performance.
+# Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+# [placement]
+# mode = "smart"
 
 # Bind a dispatch namespace. Use Workers for Platforms to deploy serverless functions programmatically on behalf of your customers.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#dispatch-namespace-bindings-workers-for-platforms
@@ -121,3 +102,18 @@ database_id = "********-****-****-****-************" # replace with your databas
 # [[vectorize]]
 # binding = "MY_INDEX"
 # index_name = "my-index"
+
+# Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
+# [ai]
+# binding = "AI"
+
+# Bind an Analytics Engine dataset. Use Analytics Engine to write analytics within your Pages Function.
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#analytics-engine-datasets
+# [[analytics_engine_datasets]]
+# binding = "MY_DATASET"
+
+# Bind a headless browser instance running on Cloudflare's global network.
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#browser-rendering
+# [browser]
+# binding = "MY_BROWSER"
