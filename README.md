@@ -84,6 +84,14 @@ If there is no code, clickable link, or this is an advertisement email, return:
 ---
 
 ## Installation ⚙️
+0. **Prerequisites**
+
+	1. Create a [Google AI Studio API](https://aistudio.google.com/)
+
+	2. Bind a domain to your [Cloudflare](https://dash.cloudflare.com/) account
+
+	3. (Optional) Download the [Bark App](https://bark.day.app/) and get a Bark Token from the App
+
 1. Install using Github Pages
 
    1. Creating D1 Database
@@ -120,29 +128,16 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 2. Install using command-line
 
-	0. **Prerequisites**
-
-	   1. Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
-
-	   ```bash
-	   npm install wrangler -g
-	   ```
-
-	   2. Create a [Google AI Studio API](https://aistudio.google.com/)
-
-	   3. Bind a domain to your [Cloudflare](https://dash.cloudflare.com/) account
-
-	   4. (Optional) Download the [Bark App](https://bark.day.app/) and get a Bark Token from the App
-
-	2. **Initialization**
+	1. **Initialization**
 
 		```bash
-		git clone https://github.com/TooonyChen/AuthInbox.git
-		cd AuthInbox
-		npm install
+		npm install wrangler -g # install wrangler
+		git clone https://github.com/TooonyChen/AuthInbox.git # clone the repository
+		cd AuthInbox # change directory
+		npm install # install dependencies
 		```
 
-	3. **create d1 database**
+	2. **create d1 database**
 
 		When you execute the [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/) login command for the first time, you will be prompted to log in. Just follow the prompts.
 
@@ -160,7 +155,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 		```
 		please copy the result from your terminal, you will use them in the next step
 
-	4. **Configure Environment Variables**
+	3. **Configure Environment Variables**
 
 		Use `wrangler.toml` file in the project root with the necessary environment variables:
 
@@ -182,7 +177,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 		database_id = "<unique-ID-for-your-database>" # Copy from step 2
 		```
 
-	5. **Deploy your own worker** 🌐
+	4. **Deploy your own worker** 🌐
 	   Deploy your Worker to make your project accessible on the Internet. Run:
 	   ```bash
 	   npx wrangler deploy
@@ -193,7 +188,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 	   ```
 	   You can now visit the URL for your newly depolyed Auth Inbox for checking the email results.
 
-    6. **Set Email Forwarding** ✉️
+    5. **Set Email Forwarding** ✉️
        Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<your-domain>` -> `Email` -> `Email-Routing` -> `Routing Rules`
 
        if you want to use `catch-all address`:
@@ -202,7 +197,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
        if you want to use `custom address`:
        ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
 
-    7. **Done**✅
+    6. **Done**✅
 
        All set! Try it now!
 

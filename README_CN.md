@@ -83,6 +83,14 @@ If there is no code, clickable link, or this is an advertisement email, return:
 ---
 
 ## 安装 ⚙️
+0. **先决条件**
+
+	1. 创建一个 [Google AI Studio API](https://aistudio.google.com/)
+
+	2. 在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
+
+	3. （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
+
 1. 使用 Github Pages 进行安装
 
 	1. 创建 D1 数据库
@@ -118,25 +126,13 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 2. 使用 Wrangler 命令行部署到 Cloudflare Workers
 
-   0. **先决条件**
-
-      1. 安装 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/)
-      ```bash
-      npm install wrangler -g
-      ```
-
-      2. 创建一个 [Google AI Studio API](https://aistudio.google.com/)
-
-      3. 在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
-
-      4. （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
-
    1. **初始化**
 
       ```bash
-      git clone https://github.com/TooonyChen/AuthInbox.git
-      cd AuthInbox
-      npm install
+      npm install wrangler -g # 安装 wrangler
+      git clone https://github.com/TooonyChen/AuthInbox.git # 克隆仓库
+      cd AuthInbox # 切换目录
+      npm install # 安装依赖
       ```
 
    2. **创建 d1 数据库**
