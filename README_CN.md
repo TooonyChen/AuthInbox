@@ -120,7 +120,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 		3. 然后，在仓库页面中，导航到 `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`，并添加以下 secrets：
 			- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 账户 ID。
 			- `CLOUDFLARE_API_TOKEN`: Cloudflare API Token。
-			- `TOML`: 配置文件，参考 [带有注释的wrangler.toml](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example)。如果你使用带有注释版本的wrangler.toml时github actions报错，请使用[不带注释的版本](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear)。
+			- `TOML`: 配置文件，参考 [带有注释的wrangler.toml](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example)。**添加至secrets时，请使用[不带注释的版本](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear)来避免奇怪的报错。
 
 		4. 返回你仓库的 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并按 `Run workflow` 来部署 worker。
 
