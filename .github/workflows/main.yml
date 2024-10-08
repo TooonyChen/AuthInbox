@@ -31,7 +31,7 @@ jobs:
         run: |
 
             # Write secrets.TOML to wrangler.toml file
-            echo '${{ secrets.TOML }}' > wrangler.toml
+            printf "%s" "${{ secrets.TOML }}" > wrangler.toml
 
             # Deploy the worker using Wrangler
             npx wrangler deploy
