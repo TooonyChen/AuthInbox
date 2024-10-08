@@ -27,19 +27,19 @@ enabled = true
 [vars]
 UseBark = "true"
 # UseBark: String
-# set to 'true' to use bark, set to 'false' to disable bark
-# 是否使用 bark 推送，设置为 'true' 以启用 bark 推送，设置为 'false' 以禁用 bark 推送
+# set to "true" to use bark, set to "false" to disable bark
+# 是否使用 bark 推送，设置为 "true" 以启用 bark 推送，设置为 "false" 以禁用 bark 推送
 
-barkUrl = "https://api.day.app" # set to your bark url, default is 'https://api.day.app'
+barkUrl = "https://api.day.app" # set to your bark url, default is "https://api.day.app"
 # barkUrl: String
-# set to your bark url, default is 'https://api.day.app'
-# 设定你的 bark 推送地址，默认为 'https://api.day.app'
+# set to your bark url, default is "https://api.day.app"
+# 设定你的 bark 推送地址，默认为 "https://api.day.app"
 
 barkTokens = "[token1, token2]"
 # barkTokens: String
-# set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
-# if you don't use bark push, then no need to change
-# 设定你的 bark tokens，从 https://bark.day.app/ 下载iOS APP，你可以使用多个 tokens，如果你只使用一个 token，那么设置为 '[token1]'
+# set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to "[token1]"
+# if you dont use bark push, then no need to change
+# 设定你的 bark tokens，从 https://bark.day.app/ 下载iOS APP，你可以使用多个 tokens，如果你只使用一个 token，那么设置为 "[token1]"
 # 如果你不使用 bark 推送，那么无需改动
 
 FrontEndAdminID = "admin"
