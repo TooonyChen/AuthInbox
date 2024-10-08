@@ -23,8 +23,8 @@ enabled = true
 # Note: Use secrets to store sensitive data.
 # - https://developers.cloudflare.com/workers/configuration/secrets/
 [vars]
-UseBark = "true"
-barkUrl = "https://api.day.app"
+UseBark = "true" # set to 'true' to use bark, set to 'false' to disable bark
+barkUrl = "https://api.day.app" # set to your bark url, default is 'https://api.day.app'
 #barkTokens = "[token1, token2]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
 #FrontEndAdminID = "admin" # your login
 #FrontEndAdminPassword = "password" # your password
@@ -52,7 +52,7 @@ barkUrl = "https://api.day.app"
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "inbox-d1"
-database_id = "********-****-****-****-************"
+database_id = "********-****-****-****-************" # replace with your database id
 
 
 
