@@ -102,7 +102,8 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
    [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
-      1. Click the button on the top to fork this repository or directly fork this repository.
+      1. Click the button on the top to fork this repository or directly fork this repository. **Important: Make sure to set your repository to private!!**
+
 
       2. Open the repository that you fork, find the `Actions` page, find `Deploy Auth Inbox to Cloudflare Workers`, and click `enable workflow` to activate the workflows.
 

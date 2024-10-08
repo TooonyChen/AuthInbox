@@ -101,7 +101,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
    [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
-	1. 点击上方按钮 fork 此仓库，或直接 fork 此仓库。
+	1. 点击上方按钮 fork 此仓库，或直接 fork 此仓库。**重要：请务必把你的仓库设置为私密！！**
 
 	2. 打开你 fork 的仓库，找到 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并点击 `enable workflow` 激活 workflow。
 
