@@ -70,34 +70,43 @@ export default {
 		}
 
 		try {
-			// 查询 code_emails 数据库，选择指定的字段
 			const { results } = await env.DB.prepare(
 				'SELECT from_org, to_addr, topic, code, created_at FROM code_mails ORDER BY created_at DESC'
 			).all();
 
-			// 构建 HTML 表格行
 			let dataHtml = '';
 			for (const row of results) {
+				const codeLinkParts = row.code.split(',');
+				let codeLinkContent;
+
+				if (codeLinkParts.length > 1) {
+					const [code, link] = codeLinkParts;
+					codeLinkContent = `${code}<br><a href="${link}" target="_blank">${row.topic}</a>`;
+				} else if (row.code.startsWith('http')) {
+					codeLinkContent = `<a href="${row.code}" target="_blank">${row.topic}</a>`;
+				} else {
+					codeLinkContent = row.code;
+				}
+
 				dataHtml += `<tr>
-          <td>${row.from_org}</td>
-          <td>${row.to_addr}</td>
-          <td>${row.topic}</td>
-          <td>${row.code}</td>
-          <td>${row.created_at}</td>
-        </tr>`;
+                    <td>${row.from_org}</td>
+                    <td>${row.to_addr}</td>
+                    <td>${row.topic}</td>
+                    <td>${codeLinkContent}</td>
+                    <td>${row.created_at}</td>
+                </tr>`;
 			}
 
-			// 替换 indexHtml 中的 {{DATA}} 占位符和表头
 			let responseHtml = indexHtml
 				.replace('{{TABLE_HEADERS}}', `
-          <tr>
-            <th>From</th>
-            <th>To</th>
-            <th>Topic</th>
-            <th>Code/Link</th>
-            <th>Receive Time</th>
-          </tr>
-        `)
+                    <tr>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Topic</th>
+                        <th>Code/Link</th>
+                        <th>Receive Time</th>
+                    </tr>
+                `)
 				.replace('{{DATA}}', dataHtml);
 
 			return new Response(responseHtml, {
@@ -113,10 +122,9 @@ export default {
 
 	// 主要功能
 	async email(message, env, ctx) {
-		const barkUrl = env.barkUrl; // "https://api.day.app"
-		const barkTokens = JSON.parse(env.barkTokens) as string[]; // ["token1", "token2"]
-		const GoogleAPIKey = env.GoogleAPIKey; // "xxxxxxxxxxxxxxxxxxxxxxxx"
 		const useBark = env.UseBark.toLowerCase() === 'true'; // true or false
+		const GoogleAPIKey = env.GoogleAPIKey; // "xxxxxxxxxxxxxxxxxxxxxxxx"
+
 
 		const rawEmail = await new Response(message.raw).text();
 		const message_id = message.headers.get("Message-ID");
@@ -244,6 +252,13 @@ export default {
 
 					// Send title and code to Bark using GET request for each token
 					if (useBark) {
+						const barkUrl = env.barkUrl; // "https://api.day.app"
+						// ["token1", "token2"]
+						const barkTokens = env.barkTokens
+							.replace(/^\[|\]$/g, '')
+							.split(',')
+							.map(token => token.trim());
+
 						const barkUrlEncodedTitle = encodeURIComponent(title);
 						const barkUrlEncodedCode = encodeURIComponent(code);
 

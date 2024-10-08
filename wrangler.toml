@@ -25,10 +25,13 @@ enabled = true
 [vars]
 UseBark = "true"
 barkUrl = "https://api.day.app"
-barkTokens = "["token1", "token2"]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '['token1']'
-FrontEndAdminID = "admin" # your login
-FrontEndAdminPassword = "password" # your password
-GoogleAPIKey = "xxxxxxxxxxx" # your google api
+#barkTokens = "[token1, token2]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
+#FrontEndAdminID = "admin" # your login
+#FrontEndAdminPassword = "password" # your password
+#GoogleAPIKey = "xxxxxxxxxxx" # your google api
+
+
+
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
 # [ai]
@@ -49,7 +52,8 @@ GoogleAPIKey = "xxxxxxxxxxx" # your google api
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "inbox-d1"
-database_id = "<unique-ID-for-your-database>"
+database_id = "20e35790-1762-45f3-9158-e9e0ad9411cd"
+
 
 
 # Bind a dispatch namespace. Use Workers for Platforms to deploy serverless functions programmatically on behalf of your customers.

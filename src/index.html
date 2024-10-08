@@ -1,82 +1,73 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Auth Inbox</title>
-
-	<!-- 引入 Google Fonts -->
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<!-- 选择您喜欢的字体，这里以 Roboto 为例 -->
 	<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap" rel="stylesheet">
-
 	<style>
-		/* 全局样式 */
 		body {
-			font-family: 'Roboto', sans-serif;
-			background-color: #f9f9f9;
+			font-family: 'Open Sans', sans-serif;
+			background-color: #1a1a1a;
+			color: #ffffff;
 			margin: 0;
 			padding: 20px;
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
 		}
-
-		/* 标题样式 */
+		.container {
+			flex-grow: 1;
+		}
 		h1 {
 			text-align: center;
-			color: #333;
+			color: #61dafb;
 			margin-bottom: 30px;
 			font-size: 2.5em;
 		}
-
-		/* 表格容器 */
 		.table-container {
 			overflow-x: auto;
 			margin: 0 auto;
+			background-color: #2a2a2a;
+			border-radius: 8px;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 		}
-
-		/* 表格样式 */
 		table {
 			width: 100%;
 			border-collapse: collapse;
-			background-color: #fff;
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 		}
-
-		/* 表头样式 */
 		th {
-			background-color: #4CAF50;
-			color: white;
+			background-color: #333;
+			color: #61dafb;
 			padding: 15px;
 			text-align: left;
 			font-weight: bold;
-			border-bottom: 2px solid #ddd;
+			border-bottom: 2px solid #444;
 		}
-
-		/* 单元格样式 */
 		td {
 			padding: 12px 15px;
-			border-bottom: 1px solid #ddd;
-			color: #555;
+			border-bottom: 1px solid #444;
+			color: #ffffff;
 		}
-
-		/* 表格行悬停效果 */
 		tr:hover {
-			background-color: #f1f1f1;
+			background-color: #3a3a3a;
 		}
-
+		a {
+			color: #61dafb;
+			text-decoration: none;
+		}
+		a:hover {
+			text-decoration: underline;
+		}
 		#footer {
 			text-align: center;
-			position: absolute;
-			bottom: 0;
-			width: 100%;
-			height: 2.5rem;
+			padding: 20px 0;
+			color: #888;
 		}
-
-		/* 响应式调整 */
 		@media (max-width: 600px) {
 			th, td {
 				padding: 10px;
 			}
-
 			h1 {
 				font-size: 2em;
 			}
@@ -84,13 +75,15 @@
 	</style>
 </head>
 <body>
-<h1>Auth Inbox</h1>
-<div class="table-container">
-	<table>
-		{{TABLE_HEADERS}}
-		{{DATA}}
-	</table>
-	<footer id="footer">Coded By <a href="https://github.com/TooonyChen">github@TooonyChen</a></footer>
+<div class="container">
+	<h1>Auth Inbox</h1>
+	<div class="table-container">
+		<table>
+			{{TABLE_HEADERS}}
+			{{DATA}}
+		</table>
+	</div>
 </div>
+<footer id="footer">Coded By <a href="https://github.com/TooonyChen">github@TooonyChen</a></footer>
 </body>
 </html>
