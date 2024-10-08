@@ -86,11 +86,15 @@ If there is no code, clickable link, or this is an advertisement email, return:
 ## Installation ⚙️
 0. **Prerequisites**
 
-	1. Create a [Google AI Studio API](https://aistudio.google.com/)
+	- Create a [Google AI Studio API](https://aistudio.google.com/)
 
-	2. Bind a domain to your [Cloudflare](https://dash.cloudflare.com/) account
+	- Bind a domain to your [Cloudflare](https://dash.cloudflare.com/) account
 
-	3. (Optional) Download the [Bark App](https://bark.day.app/) and get a Bark Token from the App
+	  - Get Your Cloudflare Account ID from [here](https://dash.cloudflare.com/profile)
+
+      - Generate a Cloudflare Workers API Token from [here](https://dash.cloudflare.com/profile/api-tokens)
+
+	- (Optional) Download the [Bark App](https://bark.day.app/) and get a Bark Token from the App
 
 1. **Install using Github Pages**
 

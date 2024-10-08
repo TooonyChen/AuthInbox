@@ -85,11 +85,15 @@ If there is no code, clickable link, or this is an advertisement email, return:
 ## 安装 ⚙️
 0. **先决条件**
 
-	1. 创建一个 [Google AI Studio API](https://aistudio.google.com/)
+	- 创建一个 [Google AI Studio API](https://aistudio.google.com/)
 
-	2. 在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
+	- 在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
 
-	3. （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
+	  - 获取你的Cloudflare 账户 ID, 可在 [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens) 中找到
+
+      - 获取你的 Cloudflare API Token，可在 [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens) 中找到
+
+	- （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
 
 1. **使用 Github Pages 进行安装**
 
