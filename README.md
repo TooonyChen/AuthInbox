@@ -125,9 +125,11 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
       4. Back to `Action` Page in your repository, find `Deploy Auth Inbox to Cloudflare Workers` and press `Run workflow` to deploy the worker. If you can't find the `Run workflow` button, you can trigger GitHub Actions automatically by making a small edit to the `readme.md` file in your repository.
 
-	  5. After the deployment is successful, you can find the URL of your worker in the `Deploy Auth Inbox to Cloudflare Workers` workflow log.
+      5. After the deployment is successful, you can find the URL of your worker in the `Deploy Auth Inbox to Cloudflare Workers` workflow log.
 
-      6. Done! ✅ You can now visit the URL for your newly deployed Auth Inbox to check the email results.
+      6. You can find the `delete all logs` button in the upper-right corner of the workflow logs page. Use it to delete the logs to avoid data leakage.
+
+      7. Done! ✅ You can now visit the URL for your newly deployed Auth Inbox to check the email results.
 
 
 2. **Install using command-line**
