@@ -30,28 +30,11 @@ jobs:
       - name: Deploy Backend for ${{ github.ref_name }}
         run: |
 
-          # 将 secrets.TOML 写入 wrangler.toml 文件
-          echo "${{ secrets.TOML }}" > wrangler.toml
+            # Write secrets.TOML to wrangler.toml file
+            echo "${{ secrets.TOML }}" > wrangler.toml
 
-          # 测试
-          cat wrangler.toml
-
-          # 安装 worker 依赖
-          npm install
-
-          # 运行部署命令
-          output=$(npm run deploy 2>&1)
-
-          # 检查部署命令是否成功
-          if [ $? -ne 0 ]; then
-              code=$?
-              echo "Command failed with exit code $code"
-              echo "Deployment Output:"
-              echo "$output"
-              exit $code
-          fi
-
-          echo "Deployed for tag ${{ github.ref_name }}"
+            # Deploy the worker using Wrangler
+            npx wrangler deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
