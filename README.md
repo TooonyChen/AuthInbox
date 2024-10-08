@@ -142,7 +142,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 		When you execute the [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/) login command for the first time, you will be prompted to log in. Just follow the prompts.
 
 		```bash
-		npx wrangler d1 execute inbox-d1 --local --file=./schema.sql # creating a d1 database called 'inbox-d1'
+		npx wrangler d1 execute inbox-d1 --local --file=./db/schema.sql # creating a d1 database called 'inbox-d1'
 		```
 		you will get the result like this:
 		```bash

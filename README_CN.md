@@ -140,7 +140,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
       当你第一次执行 [Wrangler](https://developers.cloudflare.com/workers/wrangler/get-started/) 登录命令时，系统会提示你登录。按提示操作即可。
 
       ```bash
-      npx wrangler d1 execute inbox-d1 --local --file=./schema.sql # 创建名为 'inbox-d1' 的 d1 数据库
+      npx wrangler d1 execute inbox-d1 --local --file=./db/schema.sql # 创建名为 'inbox-d1' 的 d1 数据库
       ```
       你将会看到如下结果：
       ```bash
