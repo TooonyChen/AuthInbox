@@ -144,7 +144,8 @@
 
 ## 截图 📸
 
-![image](https://github.com/user-attachments/assets/2a93c9a7-0fd9-404b-9bce-83a458f1c66e)
+![image](https://github.com/user-attachments/assets/41db550c-8340-4315-ba87-85330abc5dfb)
+
 
 ---
 
