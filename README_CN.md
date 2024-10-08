@@ -122,7 +122,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 			- `CLOUDFLARE_API_TOKEN`: Cloudflare API Token。
 			- `TOML`: 配置文件，参考 [带有注释的wrangler.toml](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example)。**添加至secrets时，请使用[不带注释的版本](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear)来避免奇怪的报错。
 
-		4. 返回你仓库的 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并按 `Run workflow` 来部署 worker。
+		4. 返回你仓库的 `Actions` 页面，找到 `Deploy Auth Inbox to Cloudflare Workers`，并按 `Run workflow` 来部署 worker。如果没找到 `Run workflow` 按钮，请你随便修改一下repo中的`readme.md`文件，让Github Actions自动运行。
 
 		5. 部署成功后，你可以在 `Deploy Auth Inbox to Cloudflare Workers` 的 workflow 日志中找到你的 worker URL。
 

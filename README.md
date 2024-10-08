@@ -123,9 +123,9 @@ If there is no code, clickable link, or this is an advertisement email, return:
          - `CLOUDFLARE_API_TOKEN`: Cloudflare API Token.
          - `TOML`: Configuration file, refer to [wrangler.toml with comments](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example). **Please use the [version without comments](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear) in adding the secret in case of unknown errors.**
 
-      4. Back to `Action` Page in your repository, find `Deploy Auth Inbox to Cloudflare Workers` and press `Run workflow` to deploy the worker.
+      4. Back to `Action` Page in your repository, find `Deploy Auth Inbox to Cloudflare Workers` and press `Run workflow` to deploy the worker. If you can't find the `Run workflow` button, you can trigger GitHub Actions automatically by making a small edit to the `readme.md` file in your repository.
 
-      5. After the deployment is successful, you can find the URL of your worker in the `Deploy Auth Inbox to Cloudflare Workers` workflow log.
+	  5. After the deployment is successful, you can find the URL of your worker in the `Deploy Auth Inbox to Cloudflare Workers` workflow log.
 
       6. Done! ✅ You can now visit the URL for your newly deployed Auth Inbox to check the email results.
 
