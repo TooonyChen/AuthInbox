@@ -53,11 +53,11 @@
    ```bash
    npm install wrangler -g
    ```
-   
+
    2. 创建一个 [Google AI Studio API](https://aistudio.google.com/)
 
    3. 在你的 [Cloudflare](https://dash.cloudflare.com/) 账户上绑定一个域名
-  
+
    4. （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
 
 2. **初始化**
@@ -97,7 +97,7 @@
    [vars]
    UseBark = 'true' # 设置为 'true' 启用 Bark，设置为 'false' 禁用
    barkUrl = "https://api.day.app"
-   barkTokens = "["token1", "token2"]" # 填写你 iOS 设备上的 Bark tokens，可从 https://bark.day.app/ 下载应用获取，可以填写多个。如果你只想用一个，那么填写 '['token1']'
+   barkTokens = "[token1, token2]" # 填写你 iOS 设备上的 Bark tokens，可从 https://bark.day.app/ 下载应用获取，可以填写多个。如果你只想用一个，那么填写 '[token1]'
    FrontEndAdminID = "admin" # 你的登录 ID
    FrontEndAdminPassword = "password" # 你的登录密码
    GoogleAPIKey = "xxxxxxxxxxx" # 你的 Google API key，如果没有可以前往 https://aistudio.google.com/ 生成一个

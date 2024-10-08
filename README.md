@@ -51,7 +51,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
    ```bash
    npm install wrangler -g
    ```
-   
+
    2. Create a [Google AI Studio API](https://aistudio.google.com/)
 
    3. Bind a domain to your [Cloudflare](https://dash.cloudflare.com/) account
@@ -95,7 +95,7 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    [vars]
    UseBark = "true" # set 'true' to use or 'false' to not use
    barkUrl = "https://api.day.app"
-   barkTokens = "["token1", "token2"]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '['token1']'
+   barkTokens = "[token1, token2]" # set to your bark tokens on your iOS device, download it from https://bark.day.app/, you can use multiple tokens, if you only use one, then set it to '[token1]'
    FrontEndAdminID = "admin" # your login
    FrontEndAdminPassword = "password" # your password
    GoogleAPIKey = "xxxxxxxxxxx" # your google api, go to https://aistudio.google.com/ to generate one if u dont have
@@ -117,13 +117,13 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    You can now visit the URL for your newly depolyed Auth Inbox for checking the email results.
 5. **Set Email Forwarding** ✉️
    Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<your-domain>` -> `Email` -> `Email-Routing` -> `Routing Rules`
-   
+
    if you want to use `catch-all address`:
    ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
-   
+
    if you want to use `custom address`:
    ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
-   
+
 7. **Done**✅
 
    All set! Try it now!
