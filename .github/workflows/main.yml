@@ -1,0 +1,28 @@
+            - name: Deploy to Cloudflare Workers with Wrangler
+  # You may pin to the exact commit or the version.
+  # uses: cloudflare/wrangler-action@c25aadc9657b0cdc4786c04e59a6fe92765a783b
+  uses: cloudflare/wrangler-action@v3.1.0
+  with:
+    # Your Cloudflare API Token
+    apiToken: # optional
+    # Your Cloudflare Account ID
+    accountId: # optional
+    # Supresses output from Wrangler commands, defaults to `false`
+    quiet: # optional, default is false
+    # The environment you'd like to deploy your Workers project to - must be defined in wrangler.toml
+    environment: # optional
+    # The relative path which Wrangler commands should be run from
+    workingDirectory: # optional
+    # The version of Wrangler you'd like to use to deploy your Workers project
+    wranglerVersion: # optional
+    # A string of environment variable names, separated by newlines. These will be bound to your Worker as Secrets and must match the names of environment variables declared in `env` of this workflow.
+    secrets: # optional
+    # Commands to execute before deploying the Workers project
+    preCommands: # optional
+    # Commands to execute after deploying the Workers project
+    postCommands: # optional
+    # The Wrangler command (along with any arguments) you wish to run. Multiple Wrangler commands can be run by separating each command with a newline. Defaults to `"deploy"`.
+    command: # optional
+    # A string of environment variable names, separated by newlines. These will be bound to your Worker using the values of matching environment variables declared in `env` of this workflow.
+    vars: # optional
+          
