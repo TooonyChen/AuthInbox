@@ -92,9 +92,9 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 	3. (Optional) Download the [Bark App](https://bark.day.app/) and get a Bark Token from the App
 
-1. Install using Github Pages
+1. **Install using Github Pages**
 
-   1. Creating D1 Database
+   1. **Creating D1 Database**
 
       1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Workers & Pages` -> `D1 SQL Database` -> `Create`
 
@@ -106,7 +106,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
       5. Copy the `database_id` and `database_name` for the next step when you configure the `TOML` file
 
-   2. Deploy the Cloudflare Worker
+   2. **Deploy the Cloudflare Worker**
 
       [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
@@ -126,7 +126,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
       6. Done! ✅ You can now visit the URL for your newly deployed Auth Inbox to check the email results.
 
 
-2. Install using command-line
+2. **Install using command-line**
 
 	1. **Initialization**
 

@@ -91,9 +91,9 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 	3. （可选）下载[Bark App](https://bark.day.app/)，在App中获得一个Bark Token
 
-1. 使用 Github Pages 进行安装
+1. **使用 Github Pages 进行安装**
 
-	1. 创建 D1 数据库
+	1. **创建 D1 数据库**
 
 		1. 进入 [Cloudflare 仪表盘](https://dash.cloudflare.com/) -> `Workers & Pages` -> `D1 SQL Database` -> `Create`
 
@@ -105,7 +105,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 		5. 复制 `database_id` 和 `database_name`，用于下一步配置 `TOML` 文件时使用
 
-	2. 部署 Cloudflare Worker
+	2. **部署 Cloudflare Worker**
 
 		[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
@@ -124,7 +124,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 		6. 完成！✅ 你现在可以访问你的新部署的 Auth Inbox URL，查看电子邮件结果。
 
-2. 使用 Wrangler 命令行部署到 Cloudflare Workers
+2. **使用 Wrangler 命令行部署到 Cloudflare Workers**
 
    1. **初始化**
 
