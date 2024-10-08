@@ -117,11 +117,14 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    You can now visit the URL for your newly depolyed Auth Inbox for checking the email results.
 5. **Set Email Forwarding** ✉️
    Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<your-domain>` -> `Email` -> `Email-Routing` -> `Routing Rules`
+   
    if you want to use `catch-all address`:
    ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
+   
    if you want to use `custom address`:
    ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
-6. **Done**✅
+   
+7. **Done**✅
 
    All set! Try it now!
 
