@@ -52,7 +52,7 @@ barkUrl = "https://api.day.app"
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "inbox-d1"
-database_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+database_id = "********-****-****-****-************"
 
 
 

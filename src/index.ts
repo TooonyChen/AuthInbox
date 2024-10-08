@@ -154,13 +154,14 @@ export default {
   2. Organization name (title) from which the email is sent.
   3. A brief summary of the email's topic (e.g., 'line register verification').
 
-  Format the output as JSON with this structure:
+  Please provide the following information in JSON format:
   {
     "title": "The organization or company that sent the verification code (e.g., 'Netflix')",
     "code": "The extracted verification code, link, or password (e.g., '123456' or 'https://example.com/verify?code=123456')",
     "topic": "A brief summary of the email's topic (e.g., 'line register verification')",
     "codeExist": 1
   }
+
 
   If both a code and a link are present, include both in the 'code' field like this:
   "code": "code, link"
@@ -207,14 +208,26 @@ export default {
 					aiData.candidates[0].content.parts[0]
 				) {
 					let extractedText = aiData.candidates[0].content.parts[0].text;
+					console.log(`Extracted Text before parsing: "${extractedText}"`);
 
-					// Remove code block formatting if present
-					extractedText = extractedText.replace(/```json\s*/, '').replace(/\s*```$/, '');
+					// Use regex to extract JSON content from code blocks
+					const jsonMatch = extractedText.match(/```json\s*([\s\S]*?)\s*```/);
+					if (jsonMatch && jsonMatch[1]) {
+						extractedText = jsonMatch[1].trim();
+						console.log(`Extracted JSON Text: "${extractedText}"`);
+					} else {
+						// If no code block, assume the entire text is JSON
+						extractedText = extractedText.trim();
+						console.log(`Assuming entire text is JSON: "${extractedText}"`);
+					}
 
+					// Parse
 					try {
 						extractedData = JSON.parse(extractedText);
+						console.log(`Parsed Extracted Data:`, extractedData);
 					} catch (parseError) {
 						console.error("JSON parsing error:", parseError);
+						console.log(`Problematic JSON Text: "${extractedText}"`);
 					}
 
 				} else {
@@ -253,7 +266,7 @@ export default {
 					// Send title and code to Bark using GET request for each token
 					if (useBark) {
 						const barkUrl = env.barkUrl; // "https://api.day.app"
-						// ["token1", "token2"]
+						// [token1, token2]
 						const barkTokens = env.barkTokens
 							.replace(/^\[|\]$/g, '')
 							.split(',')
