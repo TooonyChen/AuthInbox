@@ -117,6 +117,7 @@ Use `wrangler.toml` file in the project root with the necessary environment vari
    if you want to use `custom address`:
    ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
 6. **Done**✅
+
    All set! Try it now!
 
 
@@ -148,5 +149,6 @@ This project is licensed under the [MIT License](LICENSE).
 
 - [ ] **Multi-User Support**: Add functionality to manage multiple users for increased flexibility and broader usage.
 - [ ] **Enhance Front-End Design**: Improve the UI/UX of the web interface for a more modern and user-friendly experience.
+- [ ] **API**: Add API functionality.
 
 ---
