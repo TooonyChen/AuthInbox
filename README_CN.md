@@ -126,7 +126,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 
 		5. 部署成功后，你可以在 `Deploy Auth Inbox to Cloudflare Workers` 的 workflow 日志中找到你的 worker URL。
 
-		6. 完成！✅ 你现在可以访问你的新部署的 Auth Inbox URL，查看电子邮件结果。
+		6. 完成！✅ 请前往第三步：设置邮件转发。
 
 2. **使用 Wrangler 命令行部署到 Cloudflare Workers**
 
@@ -189,21 +189,21 @@ If there is no code, clickable link, or this is an advertisement email, return:
    ```
    output: https://auth-inbox.<你的子域名>.workers.dev
    ```
-   你现在可以访问该 URL 来查看你部署的 Auth Inbox 的邮件结果。
+   你现在可以访问该 URL 来查看你部署的 Auth Inbox 的邮件面板。
 
-   5. **设置邮件转发** ✉️
+3. **设置邮件转发** ✉️
 
-      前往 [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<你的域名>` -> `Email` -> `Email-Routing` -> `Routing Rules`
+   前往 [Cloudflare Dashboard](https://dash.cloudflare.com/) -> `Websites` -> `<你的域名>` -> `Email` -> `Email-Routing` -> `Routing Rules`
 
-      如果你想使用“接收所有地址”：
-      ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
+   如果你想使用“接收所有地址”：
+   ![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
 
-      如果你想使用“自定义地址”：
-      ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
+   如果你想使用“自定义地址”：
+   ![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
 
-   6. **完成**✅
+4. **完成！** ✅
 
-      一切设置完毕！现在可以试试了！
+   现在你可以访问你的新部署的 Auth Inbox URL，查看电子邮件结果。
 
 ---
 
