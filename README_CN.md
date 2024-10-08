@@ -14,7 +14,7 @@
 ## 目录 📑
 
 - [功能](#features)
-- [使用技术](#technologies-used)
+- [使用的技术](#technologies-used)
 - [安装](#installation)
 - [许可证](#license)
 - [截图](#Screenshots)
@@ -31,18 +31,52 @@
 
 ---
 
-## 使用技术 🛠️
+## 使用的技术 🛠️
 
-- **Cloudflare Workers 无服务器平台**：用于处理邮件和网页请求的平台。
-- **Cloudflare D1**：Cloudflare 提供的无服务器 SQL 数据库，用于存储邮件数据。
-- **TypeScript**：强类型的编程语言，提供稳健且易维护的代码。
-- **Google AI Studio API**：用于从邮件中提取相关信息。
-- **Bark API**：可选集成，用于发送实时通知。
-- **HTML/CSS**：响应式、现代化设计的前端界面。
-- **Google Fonts**：为网页界面提供一致的排版，提升
+- **Cloudflare Workers**: 无服务器平台，用于处理邮件处理和Web请求。
+- **Cloudflare D1**: Cloudflare的无服务器SQL数据库，用于存储邮件数据。
+- **TypeScript**: 强类型编程语言，确保代码的稳健性和可维护性。
+- **AI 提示词优化**: 定制的提示确保从多种邮件格式中精确提取标题、代码和主题。
+- **Google AI Studio API**: 利用优化的AI提示从邮件中提取相关信息，以提升数据的准确性和可靠性。
+- **Bark API**: 可选集成，用于发送实时通知。
+- **HTML/CSS**: 前端界面，具有响应式和现代化设计。
+- **Google Fonts**: 通过一致的排版增强Web界面的视觉吸引力。
 
-视觉效果。
 
+---
+
+## AI 提示词优化 🧠
+
+为了确保从收到的电子邮件中准确提取信息，我们使用Google AI Studio API实施了AI提示优化。通过设计精确且具有上下文意识的提示，AI可以可靠地识别和提取关键要素，如：
+
+- **组织名称（标题）**: 识别发件人的组织或公司。
+- **验证码/链接**: 提取账户验证所需的代码、链接或密码。
+- **电子邮件主题**: 总结电子邮件的主要目的，例如“账户验证”或“密码重置”。
+
+**提示词如下:**
+```plaintext
+Email content: [Insert raw email content here].
+
+Please read the email and extract the following information:
+1. Code/Link/Password from the email (if available).
+2. Organization name (title) from which the email is sent.
+3. A brief summary of the email's topic (e.g., 'account verification').
+
+Format the output as JSON with this structure:
+{
+  "title": "The organization or company that sent the verification code (e.g., 'Netflix')",
+  "code": "The extracted verification code, link, or password (e.g., '123456' or 'https://example.com/verify?code=123456')",
+  "topic": "A brief summary of the email's topic (e.g., 'account verification')",
+  "codeExist": 1
+}
+
+If both a code and a link are present, include both in the 'code' field like this:
+"code": "code, link"
+
+If there is no code, clickable link, or this is an advertisement email, return:
+{
+  "codeExist": 0
+}
 ---
 
 ## 安装 ⚙️
