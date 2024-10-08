@@ -29,28 +29,9 @@ jobs:
       # 步骤 4: 部署 Worker
       - name: Deploy Backend for ${{ github.ref_name }}
         run: |
-            # 使用 printf 写入内容，确保双引号正确
-            printf 'name = "%s"\n' "${{ secrets.TOML_NAME }}" > wrangler.toml
-            printf 'main = "%s"\n' "${{ secrets.TOML_MAIN }}" >> wrangler.toml
-            printf 'compatibility_date = "%s"\n' "${{ secrets.TOML_COMPAT_DATE }}" >> wrangler.toml
-            printf 'compatibility_flags = ["nodejs_compat"]\n' >> wrangler.toml
 
-            # 继续添加其他字段
-            printf '[observability]\nenabled = true\n' >> wrangler.toml
-
-            # vars 部分
-            printf '[vars]\nUseBark = "%s"\n' "${{ secrets.USE_BARK }}" >> wrangler.toml
-            printf 'barkUrl = "%s"\n' "${{ secrets.BARK_URL }}" >> wrangler.toml
-            printf 'barkTokens = "%s"\n' "${{ secrets.BARK_TOKENS }}" >> wrangler.toml
-            printf 'FrontEndAdminID = "%s"\n' "${{ secrets.ADMIN_ID }}" >> wrangler.toml
-            printf 'FrontEndAdminPassword = "%s"\n' "${{ secrets.ADMIN_PASSWORD }}" >> wrangler.toml
-            printf 'GoogleAPIKey = "%s"\n' "${{ secrets.GOOGLE_API_KEY }}" >> wrangler.toml
-
-            # D1 数据库部分
-            printf '[[d1_databases]]\n' >> wrangler.toml
-            printf 'binding = "DB"\n' >> wrangler.toml
-            printf 'database_name = "%s"\n' "${{ secrets.DATABASE_NAME }}" >> wrangler.toml
-            printf 'database_id = "%s"\n' "${{ secrets.DATABASE_ID }}" >> wrangler.toml
+            # Write secrets.TOML to wrangler.toml file
+            echo '${{ secrets.TOML }}' > wrangler.toml
 
             # Deploy the worker using Wrangler
             npx wrangler deploy
