@@ -9,9 +9,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
-
-![Framework](https://github.com/user-attachments/assets/3459c921-0a2f-4788-ab12-fe199fb44974)
-
+![Framework](https://github.com/user-attachments/assets/eed36b31-42f8-4b1e-9236-99cee15a66ca)
 
 ---
 
@@ -237,6 +235,7 @@ This project is licensed under the [MIT License](LICENSE).
 ## TODO 📝
 
 - [x] **Github Pages Deployment**: Automatically deploy to Cloudflare Workers via Github Actions.
+- [ ] **Regular Expressions**: Using regular expressions instead of Google Gemini AI for privacy, let using AI to an optional function.
 - [ ] **Multi-User Support**: Add functionality to manage multiple users for increased flexibility and broader usage.
 - [ ] **Enhance Front-End Design**: Improve the UI/UX of the web interface for a more modern and user-friendly experience.
 - [ ] **API**: Add API functionality.
