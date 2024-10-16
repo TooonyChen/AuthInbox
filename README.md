@@ -9,7 +9,7 @@ Don't wanna receive ads and spams on your main email? Want a bunch of alternativ
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
 
-![Framework](https://github.com/user-attachments/assets/eed36b31-42f8-4b1e-9236-99cee15a66ca)
+![Framework](https://github.com/user-attachments/assets/fb5a0204-85fd-4663-9f9d-cd90a4a1fa96)
 
 ---
 
