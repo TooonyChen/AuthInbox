@@ -235,7 +235,7 @@ This project is licensed under the [MIT License](LICENSE).
 ## TODO 📝
 
 - [x] **Github Pages Deployment**: Automatically deploy to Cloudflare Workers via Github Actions.
-- [ ] **Regular Expressions**: Using regular expressions instead of Google Gemini AI for privacy, let using AI to an optional function.
+- [ ] **Regular Expressions**: Using regular expressions instead of Google Gemini AI for privacy, make Gemini AI to an optional function.
 - [ ] **Multi-User Support**: Add functionality to manage multiple users for increased flexibility and broader usage.
 - [ ] **Enhance Front-End Design**: Improve the UI/UX of the web interface for a more modern and user-friendly experience.
 - [ ] **API**: Add API functionality.
