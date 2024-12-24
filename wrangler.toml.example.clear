@@ -7,18 +7,18 @@ compatibility_flags = ["nodejs_compat"]
 enabled = true
 
 routes = [
- { pattern = "email.lilyyaya.top", custom_domain = true },
+ { pattern = "email.xxx.top", custom_domain = true },
 ]
 
 [vars]
 UseBark = "true"
 barkUrl = "https://api.day.app"
 barkTokens = "[token1, token2]"
-FrontEndAdminID = "lilyadmin"
-FrontEndAdminPassword = "APTX4869"
-GoogleAPIKey = "AIzaSyDu8lIbKaUyL7L37kU4mSRiOeQd9M3oVOc"
+FrontEndAdminID = "admin"
+FrontEndAdminPassword = "4869"
+GoogleAPIKey = "AIzaSyDu8lIbKaUyL7LmSRiOeQd9M3oVOc"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "inbox-d1"
-database_id = "b912179f-c801-4767-92bb-d512e8282d3a"
+database_id = "b912179f-c801-2bb-d512e8282d3a"
