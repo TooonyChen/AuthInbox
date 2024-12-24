@@ -42,18 +42,18 @@ barkTokens = "[token1, token2]"
 # 设定你的 bark tokens，从 https://bark.day.app/ 下载iOS APP，你可以使用多个 tokens，如果你只使用一个 token，那么设置为 "[token1]"
 # 如果你不使用 bark 推送，那么无需改动
 
-FrontEndAdminID = "admin"
+FrontEndAdminID = "adminlily"
 # FrontEndAdminID: String
 # your login **Please change it to your own login**
 # 你的登录账号 **请更改为你自己的登录账号**
 
-FrontEndAdminPassword = "password"
+FrontEndAdminPassword = "APTX4869lily"
 # FrontEndAdminPassword: String
 # your password **Please change it to your own password**
 # 你的登录密码 **请更改为你自己的登录密码**
 
 
-GoogleAPIKey = "xxxxxxxxxxx"
+GoogleAPIKey = "AIzaSyDu8lIbKaUyL7L37kU4mSRiOeQd9M3oVOc"
 # GoogleAPIKey: String
 # your google AI API, you can have one from https://aistudio.google.com
 # 你的谷歌AI API，你可以从 https://aistudio.google.com 获取
@@ -64,7 +64,7 @@ GoogleAPIKey = "xxxxxxxxxxx"
 [[d1_databases]]
 binding = "DB"
 database_name = "inbox-d1"
-database_id = "********-****-****-****-************"
+database_id = "b912179f-c801-4767-92bb-d512e8282d3a"
 # database_id: String
 # replace with your database id
 # 请你替换为你的数据库 ID
