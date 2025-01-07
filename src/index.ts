@@ -5,10 +5,12 @@ created by: github@TooonyChen
 created on: 2024 Oct 07
 Last updated: 2024 Oct 07
 */
+import { WorkerEntrypoint } from "cloudflare:workers";
+import {RPCEmailMessage} from './rpcEmail';
 
 import indexHtml from './index.html';
 
-export interface Env {
+interface Env {
 	// If you set another name in wrangler.toml as the value for 'binding',
 	// replace "DB" with the variable name you defined.
 	DB: D1Database;
@@ -20,8 +22,10 @@ export interface Env {
 	UseBark: string;
 }
 
-export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+export default class extends WorkerEntrypoint<Env> {
+	async fetch(request: Request): Promise<Response> {
+		const env: Env = this.env;
+		const ctx: ExecutionContext = this.ctx;
 		// 将依赖 env 的常量移到函数内部
 		const FrontEndAdminID = env.FrontEndAdminID;
 		const FrontEndAdminPassword = env.FrontEndAdminPassword;
@@ -118,15 +122,16 @@ export default {
 			console.error('Error querying database:', error);
 			return new Response('Internal Server Error', { status: 500 });
 		}
-	},
+	}
 
 	// 主要功能
-	async email(message, env, ctx) {
+	async email(message: ForwardableEmailMessage): Promise<void> {
+
+		const env: Env = this.env;
 		const useBark = env.UseBark.toLowerCase() === 'true'; // true or false
 		const GoogleAPIKey = env.GoogleAPIKey; // "xxxxxxxxxxxxxxxxxxxxxxxx"
 
-
-		const rawEmail = await new Response(message.raw).text();
+		const rawEmail = message instanceof RPCEmailMessage ? (<RPCEmailMessage>message).rawEmail : await new Response(message.raw).text();
 		const message_id = message.headers.get("Message-ID");
 
 		// 将电子邮件保存到数据库
@@ -303,7 +308,15 @@ export default {
 			console.error("Error calling AI or saving to database:", e);
 		}
 	}
-} satisfies ExportedHandler<Env>;
 
+	// 暴露rpc接口，处理来自其他worker的邮件请求
+	async rpcEmail(requestBody: string): Promise<void> {
+		console.log(`Received RPC email , request body: ${requestBody}`);
+		const bodyObject =JSON.parse(requestBody);
+		const headersObject = bodyObject.headers;
+  		const headers = new Headers(headersObject);
+		const rpcEmailMessage: RPCEmailMessage = new RPCEmailMessage(bodyObject.from, bodyObject.to, bodyObject.rawEmail, headers);
+		await this.email(rpcEmailMessage);
+	}
 
-
+}
