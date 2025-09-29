@@ -58,6 +58,25 @@ GoogleAPIKey = "xxxxxxxxxxx"
 # your google AI API, you can have one from https://aistudio.google.com
 # 你的谷歌AI API，你可以从 https://aistudio.google.com 获取
 
+GeminiModel = "gemini-2.0-flash"
+# GeminiModel: String
+# optional override for the Gemini model, defaults to "gemini-2.0-flash"
+# 可选配置，覆盖默认的 Gemini 模型名称，默认值为 "gemini-2.0-flash"
+
+OpenAIAPIKey = ""
+# OpenAIAPIKey: String
+# optional key for OpenAI fallback when Gemini fails with a non-200 response
+# 可选配置，当 Gemini 返回非 200 时使用 OpenAI 作为兜底
+
+OpenAIBaseUrl = "https://api.openai.com"
+# OpenAIBaseUrl: String
+# optional, change only if you proxy the OpenAI API
+# 可选配置，仅在自建代理时更改
+
+OpenAIModel = "gpt-4o-mini"
+# OpenAIModel: String
+# optional override for the OpenAI model, defaults to "gpt-4o-mini"
+# 可选配置，覆盖默认的 OpenAI 模型
 
 # Bind a D1 database. D1 is Cloudflare’s native serverless SQL database.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#d1-databases
