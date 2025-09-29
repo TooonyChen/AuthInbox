@@ -13,6 +13,10 @@ barkTokens = "[token1, token2]"
 FrontEndAdminID = "admin"
 FrontEndAdminPassword = "password"
 GoogleAPIKey = "xxxxxxxxxxx"
+GeminiModel = "gemini-2.0-flash"
+OpenAIAPIKey = ""
+OpenAIBaseUrl = "https://api.openai.com"
+OpenAIModel = "gpt-4o-mini"
 
 [[d1_databases]]
 binding = "DB"
