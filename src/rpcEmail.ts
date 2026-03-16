@@ -1,7 +1,7 @@
 class RPCEmailMessage implements ForwardableEmailMessage {
     readonly from: string;
     readonly to: string;
-    readonly rawEmail: String;
+    readonly rawEmail: string;
     readonly raw: ReadableStream<Uint8Array>;
     readonly headers: Headers;
     readonly rawSize: number;
@@ -29,12 +29,14 @@ class RPCEmailMessage implements ForwardableEmailMessage {
         console.log(`rpcEmail default implementation: Message rejected: ${reason}`);
     }
 
-    async forward(rcptTo: string, headers: Headers = new Headers()): Promise<void> {
+    async forward(rcptTo: string, headers: Headers = new Headers()): Promise<EmailSendResult> {
         console.log(`rpcEmail default implementation: Forwarding message to: ${rcptTo}, with headers:`, headers);
+        return { messageId: `rpc-forward-${Date.now()}` };
     }
 
-    async reply(message: EmailMessage): Promise<void> {
+    async reply(message: EmailMessage): Promise<EmailSendResult> {
         console.log(`rpcEmail default implementation: Replying to: ${message}`);
+        return { messageId: `rpc-reply-${Date.now()}` };
     }
 }
 

@@ -6,9 +6,8 @@ created on: 2024 Oct 07
 Last updated: 2024 Oct 07
 */
 import { WorkerEntrypoint } from "cloudflare:workers";
+import { buildMcpBasicAuthConfigSnippet, handleMcpRequest, type McpMailDetail } from "./mcp";
 import { RPCEmailMessage } from "./rpcEmail";
-
-import indexHtml from "./index.html";
 
 type ApiFormat = "openai" | "responses" | "anthropic";
 
@@ -37,6 +36,24 @@ interface Env {
   AI_FALLBACK_API_KEY?: string;
   AI_FALLBACK_API_FORMAT?: ApiFormat;
   AI_FALLBACK_MODEL?: string;
+}
+
+interface MailDetailRow {
+  id: number;
+  messageId: string | null;
+  fromOrg: string | null;
+  fromAddr: string | null;
+  toAddr: string | null;
+  topic: string | null;
+  code: string | null;
+  createdAt: string | null;
+  subject: string | null;
+  raw: string | null;
+}
+
+interface MailDetailRecord extends MailDetailRow {
+  textBody: string | null;
+  htmlBody: string | null;
 }
 
 // Normalize model output into JSON text // 将模型输出规范化为可解析的 JSON 文本
@@ -160,6 +177,46 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
+function basicAuthUnauthorizedResponse(): Response {
+  return new Response("Unauthorized", {
+    status: 401,
+    headers: {
+      "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
+    },
+  });
+}
+
+function parseBasicAuthCredentials(request: Request): { username: string; password: string } | null {
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader?.startsWith("Basic ")) {
+    return null;
+  }
+
+  try {
+    const decodedCredentials = atob(authHeader.substring("Basic ".length));
+    const separatorIndex = decodedCredentials.indexOf(":");
+    if (separatorIndex === -1) {
+      return null;
+    }
+
+    return {
+      username: decodedCredentials.slice(0, separatorIndex),
+      password: decodedCredentials.slice(separatorIndex + 1),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isAdminAuthenticated(request: Request, env: Env): boolean {
+  const credentials = parseBasicAuthCredentials(request);
+  if (!credentials) {
+    return false;
+  }
+
+  return credentials.username === env.FrontEndAdminID && credentials.password === env.FrontEndAdminPassword;
+}
+
 function decodeQuotedPrintable(text: string): string {
   return text
     .replace(/=\r?\n/g, "")
@@ -261,47 +318,94 @@ function extractMailBodies(rawEmail: string): { textBody: string | null; htmlBod
   return { textBody, htmlBody };
 }
 
+function toMailDetailRecord(row: MailDetailRow): MailDetailRecord {
+  const { textBody, htmlBody } = extractMailBodies(String(row.raw ?? ""));
+  return {
+    id: row.id,
+    messageId: row.messageId,
+    fromOrg: row.fromOrg,
+    fromAddr: row.fromAddr,
+    toAddr: row.toAddr,
+    topic: row.topic,
+    code: row.code,
+    createdAt: row.createdAt,
+    subject: row.subject ?? null,
+    raw: row.raw ?? null,
+    textBody,
+    htmlBody,
+  };
+}
+
+function toMcpMailDetail(record: MailDetailRecord): McpMailDetail {
+  return {
+    id: record.id,
+    messageId: record.messageId,
+    fromOrg: record.fromOrg,
+    fromAddr: record.fromAddr,
+    toAddr: record.toAddr,
+    subject: record.subject,
+    topic: record.topic,
+    code: record.code,
+    createdAt: record.createdAt,
+    textBody: record.textBody,
+    htmlBody: record.htmlBody,
+  };
+}
+
+async function getLatestMcpMailDetails(env: Env, limit: number): Promise<McpMailDetail[]> {
+  const { results } = await env.DB.prepare(
+    `
+      SELECT
+        c.id,
+        c.message_id AS messageId,
+        c.from_org AS fromOrg,
+        c.from_addr AS fromAddr,
+        c.to_addr AS toAddr,
+        c.topic,
+        c.code,
+        c.created_at AS createdAt,
+        r.subject,
+        r.raw
+      FROM code_mails c
+      LEFT JOIN raw_mails r ON r.message_id = c.message_id
+      ORDER BY c.created_at DESC, c.id DESC
+      LIMIT ?
+    `
+  )
+    .bind(limit)
+    .all();
+
+  return ((results ?? []) as unknown as MailDetailRow[])
+    .map(toMailDetailRecord)
+    .map(toMcpMailDetail);
+}
+
 export default class extends WorkerEntrypoint<Env> {
   async fetch(request: Request): Promise<Response> {
     const env: Env = this.env;
-    const FrontEndAdminID = env.FrontEndAdminID;
-    const FrontEndAdminPassword = env.FrontEndAdminPassword;
 
-    // Basic-auth gate for the admin console // 使用 Basic Auth 保护管理界面
-    const authHeader = request.headers.get("Authorization");
-
-    if (!authHeader) {
-      return new Response("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
-        },
-      });
-    }
-
-    if (!authHeader.startsWith("Basic ")) {
-      return new Response("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
-        },
-      });
-    }
-
-    const base64Credentials = authHeader.substring("Basic ".length);
-    const decodedCredentials = atob(base64Credentials);
-    const [username, password] = decodedCredentials.split(":");
-
-    if (username !== FrontEndAdminID || password !== FrontEndAdminPassword) {
-      return new Response("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
-        },
-      });
+    if (!isAdminAuthenticated(request, env)) {
+      return basicAuthUnauthorizedResponse();
     }
 
     const url = new URL(request.url);
+
+    if (url.pathname === "/mcp") {
+      return handleMcpRequest(request, (limit) => getLatestMcpMailDetails(env, limit));
+    }
+
+    if (url.pathname === "/api/mcp/config" && request.method === "GET") {
+      const mcpUrl = new URL("/mcp", request.url).toString();
+      return new Response(JSON.stringify({
+        mcpUrl,
+        configSnippet: buildMcpBasicAuthConfigSnippet(mcpUrl),
+      }), {
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
 
     if (url.pathname === "/api/mails" && request.method === "GET") {
       const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
@@ -321,7 +425,7 @@ export default class extends WorkerEntrypoint<Env> {
             r.subject
           FROM code_mails c
           LEFT JOIN raw_mails r ON r.message_id = c.message_id
-          ORDER BY c.created_at DESC
+          ORDER BY c.created_at DESC, c.id DESC
           LIMIT ? OFFSET ?
         `
       )
@@ -366,20 +470,20 @@ export default class extends WorkerEntrypoint<Env> {
         return jsonResponse({ error: "Mail not found" }, 404);
       }
 
-      const { textBody, htmlBody } = extractMailBodies(String(row.raw ?? ""));
+      const detail = toMailDetailRecord(row as MailDetailRow);
       return jsonResponse({
-        id: row.id,
-        messageId: row.messageId,
-        fromOrg: row.fromOrg,
-        fromAddr: row.fromAddr,
-        toAddr: row.toAddr,
-        topic: row.topic,
-        code: row.code,
-        createdAt: row.createdAt,
-        subject: row.subject ?? null,
-        raw: row.raw ?? null,
-        textBody,
-        htmlBody,
+        id: detail.id,
+        messageId: detail.messageId,
+        fromOrg: detail.fromOrg,
+        fromAddr: detail.fromAddr,
+        toAddr: detail.toAddr,
+        topic: detail.topic,
+        code: detail.code,
+        createdAt: detail.createdAt,
+        subject: detail.subject,
+        raw: detail.raw,
+        textBody: detail.textBody,
+        htmlBody: detail.htmlBody,
       });
     }
 
@@ -402,58 +506,7 @@ export default class extends WorkerEntrypoint<Env> {
       }
     }
 
-    try {
-      const { results } = await env.DB.prepare(
-        "SELECT from_org, to_addr, topic, code, created_at FROM code_mails ORDER BY created_at DESC"
-      ).all();
-
-      let dataHtml = "";
-      for (const row of results) {
-        const codeLinkParts = row.code.split(",");
-        let codeLinkContent;
-
-        if (codeLinkParts.length > 1) {
-          const [code, link] = codeLinkParts;
-          codeLinkContent = `${code}<br><a href="${link}" target="_blank">${row.topic}</a>`;
-        } else if (row.code.startsWith("http")) {
-          codeLinkContent = `<a href="${row.code}" target="_blank">${row.topic}</a>`;
-        } else {
-          codeLinkContent = row.code;
-        }
-
-        dataHtml += `<tr>
-                    <td>${row.from_org}</td>
-                    <td>${row.to_addr}</td>
-                    <td>${row.topic}</td>
-                    <td>${codeLinkContent}</td>
-                    <td>${row.created_at}</td>
-                </tr>`;
-      }
-
-      const responseHtml = indexHtml
-        .replace(
-          "{{TABLE_HEADERS}}",
-          `
-                    <tr>
-                        <th>From</th>
-                        <th>To</th>
-                        <th>Topic</th>
-                        <th>Code/Link</th>
-                        <th>Receive Time (GMT)</th>
-                    </tr>
-                `
-        )
-        .replace("{{DATA}}", dataHtml);
-
-      return new Response(responseHtml, {
-        headers: {
-          "Content-Type": "text/html",
-        },
-      });
-    } catch (error) {
-      console.error("Error querying database:", error);
-      return new Response("Internal Server Error", { status: 500 });
-    }
+    return new Response("ASSETS binding is required to serve the frontend.", { status: 500 });
   }
 
   // Primary email handler // 主要邮件处理入口
@@ -638,7 +691,12 @@ export default class extends WorkerEntrypoint<Env> {
   // Expose RPC helper for other workers // 暴露 RPC 接口供其他 Worker 调用
   async rpcEmail(requestBody: string): Promise<void> {
     console.log(`Received RPC email , request body: ${requestBody}`);
-    const bodyObject = JSON.parse(requestBody);
+    const bodyObject = JSON.parse(requestBody) as {
+      from: string;
+      to: string;
+      rawEmail: string;
+      headers: Record<string, string>;
+    };
     const headersObject = bodyObject.headers;
     const headers = new Headers(headersObject);
     const rpcEmailMessage: RPCEmailMessage = new RPCEmailMessage(

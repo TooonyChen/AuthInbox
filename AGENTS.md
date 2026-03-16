@@ -4,7 +4,6 @@
 
 - `src/index.ts` — Cloudflare Worker entrypoint: HTTP auth gate, REST API (`/api/mails`, `/api/mails/:id`), email handler, AI extraction, D1 writes, promotional filter.
 - `src/rpcEmail.ts` — RPC-compatible `ForwardableEmailMessage` wrapper.
-- `src/index.html` — Legacy fallback UI (server-rendered table). Kept as fallback when `ASSETS` binding is absent. Do not delete.
 - `web/` — React 18 + Vite + Tailwind + shadcn/ui frontend. Built to `web/dist`, served via Cloudflare `ASSETS` binding.
 - `db/schema.sql` — D1 schema: `raw_mails` (every incoming email) + `code_mails` (AI-extracted codes only).
 
@@ -37,7 +36,7 @@ pnpm run dev
 
 - **Promotional filter runs before LLM.** `isPromotionalEmail()` checks `List-Unsubscribe`, `List-ID`, `Precedence: bulk/list`, and known ESP X-headers. If matched, raw email is still saved to `raw_mails` but LLM is skipped.
 - **Two DB tables, strict separation.** Every email → `raw_mails`. Only emails with extracted codes/links → `code_mails`. Never skip `raw_mails` insert.
-- **`src/index.html` is a fallback**, not dead code. The Worker serves `ASSETS` first; if no `ASSETS` binding, falls back to the old HTML template renderer.
+- **`ASSETS` is required for the frontend.** The Worker serves the React app from the `ASSETS` binding; there is no legacy HTML fallback.
 - **`web/dist` is gitignored.** Built at deploy time via `pnpm run deploy`. No need to commit build artifacts.
 - **`ASSETS` binding name must be `ASSETS`** (matched in `src/index.ts` as `env.ASSETS`).
 - **Base64 MIME parts** are decoded with `atob()` in `extractMailBodies()`. Cloudflare Workers runtime supports `atob`/`btoa`.

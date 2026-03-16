@@ -20,7 +20,7 @@ pnpm run test
 
 1. `isPromotionalEmail()` must run **before** any LLM call in `email()` handler.
 2. Every incoming email → `raw_mails`. Only AI-extracted results → `code_mails`. Never skip `raw_mails`.
-3. `src/index.html` is a live fallback. Do not delete.
+3. `ASSETS` is required for the frontend. There is no legacy HTML fallback.
 4. DOMPurify + sandboxed iframe on all email HTML rendering. Do not relax.
 5. Basic Auth gate is first in `WorkerEntrypoint.fetch()`. Do not move or bypass.
 6. All AI calls go through `callProvider()`. Do not add per-provider methods alongside it.
