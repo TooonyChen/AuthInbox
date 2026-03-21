@@ -2071,7 +2071,11 @@ export default class extends WorkerEntrypoint<Env> {
 
     if (env.ASSETS) {
       const assetResponse = await env.ASSETS.fetch(request);
-      if (assetResponse.status !== 404) {
+      const isStaticAssetRequest = isPublicAssetPath(pathname);
+      const isAssetRedirect = assetResponse.status >= 300 && assetResponse.status < 400;
+      const shouldFallbackToSpaIndex = isAssetRedirect && !isStaticAssetRequest;
+
+      if (assetResponse.status !== 404 && !shouldFallbackToSpaIndex) {
         const contentType = assetResponse.headers.get("Content-Type")?.toLowerCase() ?? "";
         const shouldNoStore = contentType.includes("text/html") || !isPublicAssetPath(pathname);
         return toSecureResponse(assetResponse.body, {
@@ -2084,6 +2088,23 @@ export default class extends WorkerEntrypoint<Env> {
       if (request.method === "GET" || request.method === "HEAD") {
         const indexRequest = new Request(new URL("/index.html", request.url).toString(), request);
         const indexResponse = await env.ASSETS.fetch(indexRequest);
+        const indexIsRedirect = indexResponse.status >= 300 && indexResponse.status < 400;
+
+        if (indexIsRedirect) {
+          const redirectLocation = indexResponse.headers.get("Location");
+          if (redirectLocation) {
+            const redirectedIndexRequest = new Request(new URL(redirectLocation, request.url).toString(), request);
+            const redirectedIndexResponse = await env.ASSETS.fetch(redirectedIndexRequest);
+            if (redirectedIndexResponse.status !== 404) {
+              return toSecureResponse(redirectedIndexResponse.body, {
+                status: redirectedIndexResponse.status,
+                statusText: redirectedIndexResponse.statusText,
+                headers: redirectedIndexResponse.headers,
+              });
+            }
+          }
+        }
+
         if (indexResponse.status !== 404) {
           return toSecureResponse(indexResponse.body, {
             status: indexResponse.status,
