@@ -23,11 +23,6 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
-# Runtime guardrails to avoid runaway costs/abuse amplification
-[limits]
-cpu_ms = 30000
-subrequests = 30
-
 # Variable bindings. These are arbitrary, plaintext strings (similar to environment variables)
 # Docs:
 # - https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables

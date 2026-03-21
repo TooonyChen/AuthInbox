@@ -10,10 +10,6 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
-[limits]
-cpu_ms = 30000
-subrequests = 30
-
 [vars]
 UseBark = "true"
 barkUrl = "https://api.day.app"
