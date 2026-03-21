@@ -3,12 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build:web": "pnpm -C web run build",
-    "dev:web": "pnpm -C web run dev",
-    "deploy": "pnpm run build:web && wrangler deploy",
+    "build:web": "corepack pnpm -C web run build",
+    "dev:web": "corepack pnpm -C web run dev",
+    "deploy": "corepack pnpm run build:web && wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
-    "test": "vitest",
+    "test": "vitest run",
+    "qa:assets-smoke": "node scripts/qa_assets_smoke.mjs",
     "cf-typegen": "wrangler types"
   },
   "devDependencies": {

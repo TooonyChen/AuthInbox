@@ -10,38 +10,76 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     name: Deploy Auth Inbox Worker
     steps:
-      # 步骤 1: 检出代码
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 步骤 2: 设置 Node.js 环境
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # 根据您的项目需求选择 Node.js 版本
+          node-version: '20'
 
-      # 步骤 3: 安装依赖项
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install Dependencies
-        run: npm install
-
-      - name: Install Web Dependencies
-        run: npm --prefix web install
+        run: corepack pnpm install --frozen-lockfile
 
       - name: Build Web App
-        run: npm run build:web
+        run: corepack pnpm run build:web
 
-      # 步骤 4: 部署 Worker
-      - name: Deploy Backend for ${{ github.ref_name }}
+      - name: Prepare Wrangler Config
         run: |
+          cp wrangler.toml.example.clear wrangler.toml
 
-            # Write secrets.TOML to wrangler.toml file
-            echo '${{ secrets.TOML }}' > wrangler.toml
+          if [ -n "${{ vars.CF_WORKER_NAME }}" ]; then
+            sed -i "s/^name = .*/name = \"${{ vars.CF_WORKER_NAME }}\"/" wrangler.toml
+          fi
 
-            # Deploy the worker using Wrangler
-            npx wrangler deploy
+          if [ -n "${{ vars.CF_D1_DATABASE_NAME }}" ]; then
+            sed -i "s/^database_name = .*/database_name = \"${{ vars.CF_D1_DATABASE_NAME }}\"/" wrangler.toml
+          fi
+
+          if [ -n "${{ vars.CF_D1_DATABASE_ID }}" ]; then
+            sed -i "s/^database_id = .*/database_id = \"${{ vars.CF_D1_DATABASE_ID }}\"/" wrangler.toml
+          fi
+
+      - name: Validate Wrangler Config
+        run: |
+          if grep -q '\*\*\*\*' wrangler.toml; then
+            echo "wrangler.toml still has placeholder values. Set repository vars CF_D1_DATABASE_ID (and optionally CF_WORKER_NAME/CF_D1_DATABASE_NAME)." >&2
+            exit 1
+          fi
+
+      - name: Run ASSETS Smoke QA (local worker)
+        run: corepack pnpm run qa:assets-smoke
+        env:
+          QA_WRANGLER_CONFIG: wrangler.toml
+          QA_ADMIN_ID: admin
+          QA_ADMIN_PASSWORD: qa-password
+
+      - name: Deploy Backend for ${{ github.ref_name }}
+        run: corepack pnpm exec wrangler deploy --config wrangler.toml
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Sync Sensitive Worker Secrets (Optional)
+        run: |
+          put_secret () {
+            local key="$1"
+            local value="$2"
+            if [ -n "$value" ]; then
+              printf '%s' "$value" | corepack pnpm exec wrangler secret put "$key" --config wrangler.toml
+            fi
+          }
+
+          put_secret "FrontEndAdminPassword" "${{ secrets.FRONTEND_ADMIN_PASSWORD }}"
+          put_secret "AI_API_KEY" "${{ secrets.AI_API_KEY }}"
+          put_secret "AI_FALLBACK_API_KEY" "${{ secrets.AI_FALLBACK_API_KEY }}"
+          put_secret "barkTokens" "${{ secrets.BARK_TOKENS }}"
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

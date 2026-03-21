@@ -9,11 +9,10 @@ Package manager: **pnpm**. Never use npm commands.
 ## Key Commands
 
 ```bash
-pnpm run dev             # Worker backend :8787
-pnpm -C web run dev      # React frontend :5173 (proxy /api → :8787)
-pnpm run dev:remote      # backend with live D1
-pnpm run deploy          # build:web + wrangler deploy
-pnpm run test
+corepack pnpm run dev      # Worker backend :8787
+corepack pnpm run dev:web  # React frontend :5173 (proxy /api → :8787)
+corepack pnpm run deploy   # build:web + wrangler deploy
+corepack pnpm run test
 ```
 
 ## Architecture Boundaries — Never Violate

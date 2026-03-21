@@ -12,25 +12,25 @@
 
 ```bash
 # Install
-pnpm install                     # root (Worker) deps
+corepack pnpm install            # root (Worker) deps
 # Dev
-pnpm run dev                     # wrangler dev — local Worker on :8787
-pnpm run dev:remote              # wrangler dev --remote — use live D1
-pnpm -C web run dev              # Vite dev server on :5173 (proxies /api → :8787)
+corepack pnpm run dev            # wrangler dev — local Worker on :8787
+corepack pnpm run dev:web        # Vite dev server on :5173 (proxies /api → :8787)
 # Build & deploy
-pnpm run build:web               # vite build → web/dist
-pnpm run deploy                  # build:web + wrangler deploy
+corepack pnpm run build:web      # vite build → web/dist
+corepack pnpm run deploy         # build:web + wrangler deploy
 # Misc
-pnpm run test                    # vitest with @cloudflare/vitest-pool-workers
-pnpm run cf-typegen              # regenerate Worker type bindings
+corepack pnpm run test           # run vitest suite
+corepack pnpm run qa:assets-smoke # local smoke test for React assets route
+corepack pnpm run cf-typegen     # regenerate Worker type bindings
 ```
 
 Local setup:
 ```bash
 cp wrangler.toml.example wrangler.toml   # fill in database_id + secrets
-pnpm wrangler d1 execute inbox-d1 --local --file=db/schema.sql
-pnpm run build:web
-pnpm run dev
+corepack pnpm exec wrangler d1 execute inbox-d1 --local --file=db/schema.sql
+corepack pnpm run build:web
+corepack pnpm run dev
 ```
 
 ## Architecture Constraints

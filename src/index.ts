@@ -39,22 +39,248 @@ interface Env {
   AI_FALLBACK_MODEL?: string;
 }
 
+const NO_STORE_HEADERS: Record<string, string> = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+};
+
+const HARDENING_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+};
+
+const MAX_PROMPT_BODY_LENGTH = 8000;
+
+function applyHardeningHeaders(
+  headers: HeadersInit,
+  options: { noStore?: boolean } = {}
+): Headers {
+  const merged = new Headers(headers);
+  for (const [key, value] of Object.entries(HARDENING_HEADERS)) {
+    merged.set(key, value);
+  }
+  if (options.noStore ?? true) {
+    for (const [key, value] of Object.entries(NO_STORE_HEADERS)) {
+      merged.set(key, value);
+    }
+  }
+  return merged;
+}
+
+function toSecureResponse(
+  body: BodyInit | null,
+  init: ResponseInit = {},
+  options: { noStore?: boolean } = {}
+): Response {
+  return new Response(body, {
+    ...init,
+    headers: applyHardeningHeaders(init.headers ?? {}, options),
+  });
+}
+
+function unauthorizedResponse(): Response {
+  return toSecureResponse("Unauthorized", {
+    status: 401,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
+    },
+  });
+}
+
+export function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+export function sanitizeHttpUrl(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function fixedTimeEquals(left: string, right: string): boolean {
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+  const maxLength = Math.max(leftBytes.length, rightBytes.length);
+  let diff = leftBytes.length ^ rightBytes.length;
+
+  for (let index = 0; index < maxLength; index++) {
+    diff |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0);
+  }
+
+  return diff === 0;
+}
+
+export function parseBasicAuthCredentials(
+  authHeader: string | null
+): { username: string; password: string } | null {
+  if (!authHeader || !authHeader.startsWith("Basic ")) {
+    return null;
+  }
+
+  const encodedCredentials = authHeader.substring("Basic ".length).trim();
+  if (!encodedCredentials) {
+    return null;
+  }
+
+  let decodedCredentials: string;
+  try {
+    decodedCredentials = atob(encodedCredentials);
+  } catch {
+    return null;
+  }
+
+  const separatorIndex = decodedCredentials.indexOf(":");
+  if (separatorIndex < 0) {
+    return null;
+  }
+
+  return {
+    username: decodedCredentials.slice(0, separatorIndex),
+    password: decodedCredentials.slice(separatorIndex + 1),
+  };
+}
+
+export function isAuthorizedBasicAuth(
+  authHeader: string | null,
+  expectedUsername: string,
+  expectedPassword: string
+): boolean {
+  const credentials = parseBasicAuthCredentials(authHeader);
+  if (!credentials) {
+    return false;
+  }
+
+  return (
+    fixedTimeEquals(credentials.username, expectedUsername)
+    && fixedTimeEquals(credentials.password, expectedPassword)
+  );
+}
+
+function normalisePromptText(value: string): string {
+  return value.replace(/\r/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/\s+/g, " ").trim();
+}
+
+export function buildAiPrompt(params: {
+  from: string;
+  to: string;
+  subject: string;
+  textBody: string;
+}): string {
+  const emailBody = normalisePromptText(params.textBody).slice(0, MAX_PROMPT_BODY_LENGTH);
+  const subject = normalisePromptText(params.subject).slice(0, 300);
+
+  return `
+Email metadata:
+- From: ${params.from}
+- To: ${params.to}
+- Subject: ${subject || "(no subject)"}
+
+Email text content:
+${emailBody || "(empty body)"}
+
+Please extract:
+1. Verification code / password / magic link.
+2. Sender organization name.
+3. A short topic summary.
+
+Return strict JSON:
+{
+  "title": "Sender organization",
+  "code": "verification code, link, or password",
+  "topic": "short summary",
+  "codeExist": 1
+}
+
+If both code and link exist:
+"code": "code, link"
+
+If there is no verification code/password/clickable link:
+{
+  "codeExist": 0
+}
+`;
+}
+
+export function summarizeExtractionForLog(payload: Record<string, unknown>): string {
+  const codeExistValue = payload.codeExist;
+  const codeExist =
+    typeof codeExistValue === "number" || typeof codeExistValue === "string"
+      ? String(codeExistValue)
+      : "unknown";
+  return `codeExist=${codeExist}`;
+}
+
+interface LegacyMailRow {
+  from_org: string | null;
+  to_addr: string | null;
+  topic: string | null;
+  code: string | null;
+  created_at: string | null;
+}
+
+export function buildLegacyCodeCell(codeValue: string | null, topicValue: string | null): string {
+  const codeText = (codeValue ?? "").trim();
+  const topic = escapeHtml((topicValue ?? "").trim() || "Open Link");
+
+  if (!codeText) return "-";
+
+  const commaParts = codeText.split(",");
+  if (commaParts.length > 1) {
+    const codePart = escapeHtml(commaParts[0]?.trim() ?? "");
+    const linkPart = commaParts.slice(1).join(",").trim();
+    const safeLink = sanitizeHttpUrl(linkPart);
+    if (safeLink) {
+      return `${codePart}<br><a href="${escapeHtml(safeLink)}" target="_blank" rel="noopener noreferrer">${topic}</a>`;
+    }
+    return codePart || "-";
+  }
+
+  const standaloneLink = sanitizeHttpUrl(codeText);
+  if (standaloneLink) {
+    return `<a href="${escapeHtml(standaloneLink)}" target="_blank" rel="noopener noreferrer">${topic}</a>`;
+  }
+
+  return escapeHtml(codeText);
+}
+
+function buildLegacyTableRow(row: LegacyMailRow): string {
+  return `<tr>
+                    <td>${escapeHtml(String(row.from_org ?? "-"))}</td>
+                    <td>${escapeHtml(String(row.to_addr ?? "-"))}</td>
+                    <td>${escapeHtml(String(row.topic ?? "-"))}</td>
+                    <td>${buildLegacyCodeCell(row.code, row.topic)}</td>
+                    <td>${escapeHtml(String(row.created_at ?? "-"))}</td>
+                </tr>`;
+}
+
 // Normalize model output into JSON text // 将模型输出规范化为可解析的 JSON 文本
 function extractJsonFromText(rawText: string): Record<string, unknown> | null {
   let candidate = rawText.trim();
   const jsonMatch = candidate.match(/```json\s*([\s\S]*?)\s*```/);
   if (jsonMatch && jsonMatch[1]) {
     candidate = jsonMatch[1].trim();
-    console.log(`Extracted JSON Text: "${candidate}"`);
+    console.log(`Extracted JSON payload, length=${candidate.length}`);
   } else {
-    console.log(`Assuming entire text is JSON: "${candidate}"`);
+    console.log(`Attempting to parse provider output as JSON, length=${candidate.length}`);
   }
 
   try {
     return JSON.parse(candidate);
   } catch (parseError) {
     console.error("JSON parsing error:", parseError);
-    console.log(`Problematic JSON Text: "${candidate}"`);
+    console.log(`Invalid JSON payload length=${candidate.length}`);
     return null;
   }
 }
@@ -152,7 +378,7 @@ async function callProvider(config: ProviderConfig, prompt: string): Promise<str
 }
 
 function jsonResponse(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
+  return toSecureResponse(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
@@ -269,36 +495,8 @@ export default class extends WorkerEntrypoint<Env> {
 
     // Basic-auth gate for the admin console // 使用 Basic Auth 保护管理界面
     const authHeader = request.headers.get("Authorization");
-
-    if (!authHeader) {
-      return new Response("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
-        },
-      });
-    }
-
-    if (!authHeader.startsWith("Basic ")) {
-      return new Response("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
-        },
-      });
-    }
-
-    const base64Credentials = authHeader.substring("Basic ".length);
-    const decodedCredentials = atob(base64Credentials);
-    const [username, password] = decodedCredentials.split(":");
-
-    if (username !== FrontEndAdminID || password !== FrontEndAdminPassword) {
-      return new Response("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
-        },
-      });
+    if (!isAuthorizedBasicAuth(authHeader, FrontEndAdminID, FrontEndAdminPassword)) {
+      return unauthorizedResponse();
     }
 
     const url = new URL(request.url);
@@ -390,14 +588,22 @@ export default class extends WorkerEntrypoint<Env> {
     if (env.ASSETS) {
       const assetResponse = await env.ASSETS.fetch(request);
       if (assetResponse.status !== 404) {
-        return assetResponse;
+        return toSecureResponse(assetResponse.body, {
+          status: assetResponse.status,
+          statusText: assetResponse.statusText,
+          headers: assetResponse.headers,
+        }, { noStore: false });
       }
 
       if (request.method === "GET" || request.method === "HEAD") {
         const indexRequest = new Request(new URL("/index.html", request.url).toString(), request);
         const indexResponse = await env.ASSETS.fetch(indexRequest);
         if (indexResponse.status !== 404) {
-          return indexResponse;
+          return toSecureResponse(indexResponse.body, {
+            status: indexResponse.status,
+            statusText: indexResponse.statusText,
+            headers: indexResponse.headers,
+          }, { noStore: false });
         }
       }
     }
@@ -405,29 +611,11 @@ export default class extends WorkerEntrypoint<Env> {
     try {
       const { results } = await env.DB.prepare(
         "SELECT from_org, to_addr, topic, code, created_at FROM code_mails ORDER BY created_at DESC"
-      ).all();
+      ).all<LegacyMailRow>();
 
       let dataHtml = "";
       for (const row of results) {
-        const codeLinkParts = row.code.split(",");
-        let codeLinkContent;
-
-        if (codeLinkParts.length > 1) {
-          const [code, link] = codeLinkParts;
-          codeLinkContent = `${code}<br><a href="${link}" target="_blank">${row.topic}</a>`;
-        } else if (row.code.startsWith("http")) {
-          codeLinkContent = `<a href="${row.code}" target="_blank">${row.topic}</a>`;
-        } else {
-          codeLinkContent = row.code;
-        }
-
-        dataHtml += `<tr>
-                    <td>${row.from_org}</td>
-                    <td>${row.to_addr}</td>
-                    <td>${row.topic}</td>
-                    <td>${codeLinkContent}</td>
-                    <td>${row.created_at}</td>
-                </tr>`;
+        dataHtml += buildLegacyTableRow(row);
       }
 
       const responseHtml = indexHtml
@@ -445,14 +633,19 @@ export default class extends WorkerEntrypoint<Env> {
         )
         .replace("{{DATA}}", dataHtml);
 
-      return new Response(responseHtml, {
+      return toSecureResponse(responseHtml, {
         headers: {
-          "Content-Type": "text/html",
+          "Content-Type": "text/html; charset=utf-8",
         },
       });
     } catch (error) {
       console.error("Error querying database:", error);
-      return new Response("Internal Server Error", { status: 500 });
+      return toSecureResponse("Internal Server Error", {
+        status: 500,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+      });
     }
   }
 
@@ -479,12 +672,13 @@ export default class extends WorkerEntrypoint<Env> {
         : null;
 
     // Pull raw email content // 获取原始邮件内容
-    const rawEmail =
+    const rawEmail: string =
       message instanceof RPCEmailMessage
         ? (message as RPCEmailMessage).rawEmail
         : await new Response(message.raw).text();
     const messageId = message.headers.get("Message-ID");
     const rawSubject = message.headers.get("Subject");
+    const { textBody } = extractMailBodies(rawEmail);
 
     // Persist raw mail payload for auditing // 将原始邮件持久化以便审计
     const { success } = await env.DB.prepare(
@@ -494,42 +688,23 @@ export default class extends WorkerEntrypoint<Env> {
       .run();
 
     if (!success) {
-      message.setReject(`Failed to save message from ${message.from} to ${message.to}`);
-      console.log(`Failed to save message from ${message.from} to ${message.to}`);
+      message.setReject("Failed to save message payload");
+      console.log(`Failed to save raw mail payload for messageId=${messageId ?? "unknown"}`);
     }
 
     // Skip promotional/bulk emails before hitting the LLM
     if (isPromotionalEmail(message.headers, rawEmail)) {
-      console.log(`Skipping promotional email from ${message.from}: ${rawSubject}`);
+      console.log(`Skipping promotional email messageId=${messageId ?? "unknown"}`);
       return;
     }
 
     // Prompt instructs model how to format extraction // 提示词说明提取格式和字段要求
-    const aiPrompt = `
-  Email content: ${rawEmail}.
-
-  Please read the email and extract the following information:
-  1. Code/Link/Password from the email (if available).
-  2. Organization name (title) from which the email is sent.
-  3. A brief summary of the email's topic (e.g., 'line register verification').
-
-  Please provide the following information in JSON format:
-  {
-    "title": "The organization or company that sent the verification code (e.g., 'Netflix')",
-    "code": "The extracted verification code, link, or password (e.g., '123456' or 'https://example.com/verify?code=123456')",
-    "topic": "A brief summary of the email's topic (e.g., 'line register verification')",
-    "codeExist": 1
-  }
-
-
-  If both a code and a link are present, include both in the 'code' field like this:
-  "code": "code, link"
-
-  If there is no code, clickable link, or this is an advertisement email, return:
-  {
-    "codeExist": 0
-  }
-`;
+    const aiPrompt = buildAiPrompt({
+      from: message.from,
+      to: message.to,
+      subject: rawSubject ?? "",
+      textBody: textBody ?? stripHtmlTags(rawEmail).slice(0, MAX_PROMPT_BODY_LENGTH),
+    });
 
     try {
       const maxRetries = 3;
@@ -543,7 +718,7 @@ export default class extends WorkerEntrypoint<Env> {
           const parsed = extractJsonFromText(text);
           if (parsed) {
             extractedData = parsed;
-            console.log("[primary] extracted data:", extractedData);
+            console.log(`[primary] extracted fields: ${summarizeExtractionForLog(parsed)}`);
             break;
           }
         }
@@ -559,7 +734,7 @@ export default class extends WorkerEntrypoint<Env> {
           const parsed = extractJsonFromText(text);
           if (parsed) {
             extractedData = parsed;
-            console.log("[fallback] extracted data:", extractedData);
+            console.log(`[fallback] extracted fields: ${summarizeExtractionForLog(parsed)}`);
           } else {
             console.error("[fallback] failed to parse response");
           }
@@ -585,11 +760,9 @@ export default class extends WorkerEntrypoint<Env> {
             .run();
 
           if (!codeMailSuccess) {
-            message.setReject(
-              `Failed to save extracted code for message from ${message.from} to ${message.to}`
-            );
+            message.setReject("Failed to save extracted code payload");
             console.log(
-              `Failed to save extracted code for message from ${message.from} to ${message.to}`
+              `Failed to save extracted code for messageId=${messageId ?? "unknown"}`
             );
           }
 
@@ -599,12 +772,13 @@ export default class extends WorkerEntrypoint<Env> {
             const barkTokens = env.barkTokens
               .replace(/^\[|\]$/g, "")
               .split(",")
-              .map((token) => token.trim());
+              .map((token) => token.trim())
+              .filter(Boolean);
 
             const barkUrlEncodedTitle = encodeURIComponent(title);
             const barkUrlEncodedCode = encodeURIComponent(code);
 
-            for (const token of barkTokens) {
+            for (const [index, token] of barkTokens.entries()) {
               const barkRequestUrl = `${barkUrl}/${token}/${barkUrlEncodedTitle}/${barkUrlEncodedCode}`;
 
               const barkResponse = await fetch(barkRequestUrl, {
@@ -613,13 +787,11 @@ export default class extends WorkerEntrypoint<Env> {
 
               if (barkResponse.ok) {
                 console.log(
-                  `Successfully sent notification to Bark for token ${token} for message from ${message.from} to ${message.to}`
+                  `Successfully sent Bark notification ${index + 1}/${barkTokens.length} for messageId=${messageId ?? "unknown"}`
                 );
-                const responseData = await barkResponse.json();
-                console.log("Bark response:", responseData);
               } else {
                 console.error(
-                  `Failed to send notification to Bark for token ${token}: ${barkResponse.status} ${barkResponse.statusText}`
+                  `Failed Bark notification ${index + 1}/${barkTokens.length}: ${barkResponse.status} ${barkResponse.statusText}`
                 );
               }
             }
@@ -637,10 +809,31 @@ export default class extends WorkerEntrypoint<Env> {
 
   // Expose RPC helper for other workers // 暴露 RPC 接口供其他 Worker 调用
   async rpcEmail(requestBody: string): Promise<void> {
-    console.log(`Received RPC email , request body: ${requestBody}`);
-    const bodyObject = JSON.parse(requestBody);
-    const headersObject = bodyObject.headers;
-    const headers = new Headers(headersObject);
+    console.log("Received RPC email request");
+    let bodyObject: {
+      from?: string;
+      to?: string;
+      rawEmail?: string;
+      headers?: Record<string, string>;
+    };
+
+    try {
+      bodyObject = JSON.parse(requestBody);
+    } catch {
+      console.error("rpcEmail received invalid JSON");
+      return;
+    }
+
+    if (
+      typeof bodyObject.from !== "string"
+      || typeof bodyObject.to !== "string"
+      || typeof bodyObject.rawEmail !== "string"
+    ) {
+      console.error("rpcEmail missing required fields");
+      return;
+    }
+
+    const headers = new Headers(bodyObject.headers ?? {});
     const rpcEmailMessage: RPCEmailMessage = new RPCEmailMessage(
       bodyObject.from,
       bodyObject.to,

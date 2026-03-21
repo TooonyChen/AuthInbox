@@ -83,11 +83,17 @@ flowchart LR
    In your forked repository, go to `Settings` → `Secrets and variables` → `Actions` and add:
    - `CLOUDFLARE_ACCOUNT_ID`
    - `CLOUDFLARE_API_TOKEN`
-   - `TOML` — use the [comment-free template](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear) to avoid parse errors.
+   - `FRONTEND_ADMIN_PASSWORD`
+   - `AI_API_KEY`
+   - *(Optional)* `AI_FALLBACK_API_KEY`
+   - *(Optional, Bark)* `BARK_TOKENS`
+
+   Add these repository **Variables**:
+   - `CF_D1_DATABASE_ID` (required)
+   - *(Optional)* `CF_WORKER_NAME`
+   - *(Optional)* `CF_D1_DATABASE_NAME`
 
    Then go to `Actions` → `Deploy Auth Inbox to Cloudflare Workers` → `Run workflow`.
-
-   After success, **delete the workflow logs** to avoid leaking your config.
 
 3. Jump to [Set Email Forwarding](#3-set-email-forwarding-).
 
@@ -100,14 +106,14 @@ flowchart LR
    ```bash
    git clone https://github.com/TooonyChen/AuthInbox.git
    cd AuthInbox
-   pnpm install
+   corepack pnpm install
    ```
 
 2. **Create D1 database**
 
    ```bash
-   pnpm wrangler d1 create inbox-d1
-   pnpm wrangler d1 execute inbox-d1 --remote --file=./db/schema.sql
+   corepack pnpm exec wrangler d1 create inbox-d1
+   corepack pnpm exec wrangler d1 execute inbox-d1 --remote --file=./db/schema.sql
    ```
 
    Copy the `database_id` from the output.
@@ -118,24 +124,33 @@ flowchart LR
    cp wrangler.toml.example wrangler.toml
    ```
 
-   Edit `wrangler.toml` — at minimum fill in:
+   Edit `wrangler.toml` — at minimum fill in non-sensitive values:
 
    ```toml
-   [vars]
-   FrontEndAdminID       = "your-username"
-   FrontEndAdminPassword = "your-password"
-   UseBark               = "false"
+    [vars]
+    FrontEndAdminID = "your-username"
+    UseBark         = "false"
 
-   # AI provider — choose any compatible service
-   AI_BASE_URL    = "https://generativelanguage.googleapis.com/v1beta/openai"
-   AI_API_KEY     = "your-api-key"
-   AI_API_FORMAT  = "openai"
-   AI_MODEL       = "gemini-2.0-flash"
+    # AI provider — choose any compatible service
+    AI_BASE_URL    = "https://generativelanguage.googleapis.com/v1beta/openai"
+    AI_API_FORMAT  = "openai"
+    AI_MODEL       = "gemini-2.0-flash"
 
    [[d1_databases]]
    binding       = "DB"
    database_name = "inbox-d1"
-   database_id   = "<your-database-id>"
+    database_id   = "<your-database-id>"
+    ```
+
+   Set secrets (never store these in `wrangler.toml`):
+
+   ```bash
+   corepack pnpm exec wrangler secret put FrontEndAdminPassword
+   corepack pnpm exec wrangler secret put AI_API_KEY
+
+   # Optional (fallback provider and Bark)
+   corepack pnpm exec wrangler secret put AI_FALLBACK_API_KEY
+   corepack pnpm exec wrangler secret put barkTokens
    ```
 
    **`AI_API_FORMAT`** options:
@@ -158,20 +173,25 @@ flowchart LR
    **Optional fallback provider** (triggered if primary fails after 3 retries):
    ```toml
    # AI_FALLBACK_BASE_URL   = "https://api.openai.com"
-   # AI_FALLBACK_API_KEY    = "your-fallback-key"
    # AI_FALLBACK_API_FORMAT = "openai"
    # AI_FALLBACK_MODEL      = "gpt-4o-mini"
    ```
 
-   Optional Bark vars: `barkTokens`, `barkUrl`.
+   Optional Bark vars: `barkUrl` (`barkTokens` should be configured as a secret).
 
 4. **Build and deploy**
 
    ```bash
-   pnpm run deploy
+   corepack pnpm run deploy
    ```
 
    Output: `https://auth-inbox.<your-subdomain>.workers.dev`
+
+   Optional local ASSETS smoke QA:
+
+   ```bash
+   corepack pnpm run qa:assets-smoke
+   ```
 
 ---
 
@@ -188,6 +208,13 @@ Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → `Websites` → `<
 ### 4. Done! 🎉
 
 Visit your Worker URL, log in with the credentials you set, and start receiving verification emails.
+
+### 5. Security Hardening for Cloudflare Free 🔐
+
+1. Enable **Cloudflare Access** on your `workers.dev` (or custom domain) route, and keep Basic Auth enabled in app.
+2. Enable Cloudflare **Managed WAF ruleset** in your zone.
+3. Add a **Rate Limiting** rule for `/api/*` (for example, protect against brute-force and scraping bursts).
+4. Keep `workers.dev` disabled in production if you only use custom domain routes.
 
 ---
 
