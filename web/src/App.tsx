@@ -1,53 +1,134 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
-import { Copy, Inbox, RefreshCw, ShieldCheck } from 'lucide-react';
+import {
+	Archive,
+	Bell,
+	ChevronLeft,
+	ChevronRight,
+	Copy,
+	Inbox,
+	Menu,
+	RefreshCw,
+	Search,
+	Settings,
+	ShieldCheck,
+	Star,
+	Trash2,
+	X,
+} from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
-import { Card, CardHeader, CardTitle } from './components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { cn } from './lib/utils';
 
-const PAGE_SIZE = 20;
+type DensityMode = 'default' | 'comfortable' | 'compact';
+type ReadingPaneMode = 'none' | 'right' | 'bottom';
+type ThemeMode = 'dark' | 'light' | 'system';
+type InboxView = 'inbox' | 'starred' | 'important' | 'unread' | 'archive' | 'trash' | 'snoozed';
+type CategoryView = 'all' | 'primary' | 'social' | 'promotions' | 'updates' | 'forums';
+type ThreadAction =
+	| 'read'
+	| 'unread'
+	| 'star'
+	| 'unstar'
+	| 'archive'
+	| 'unarchive'
+	| 'delete'
+	| 'restore'
+	| 'important'
+	| 'not-important'
+	| 'snooze'
+	| 'label-add'
+	| 'label-remove';
 
-interface MailListItem {
+interface MailThreadItem {
 	id: number;
+	threadId: string;
 	messageId: string | null;
-	fromOrg: string | null;
 	fromAddr: string | null;
+	fromOrg: string | null;
 	toAddr: string | null;
+	subject: string | null;
 	topic: string | null;
 	code: string | null;
+	snippet: string;
 	createdAt: string | null;
-	subject: string | null;
+	isRead: boolean;
+	isStarred: boolean;
+	isArchived: boolean;
+	isDeleted: boolean;
+	isImportant: boolean;
+	isMuted: boolean;
+	category: Exclude<CategoryView, 'all'>;
+	labels: string[];
+	hasCode: boolean;
+	hasHtml: boolean;
+	snoozedUntil: string | null;
 }
 
-interface MailListResponse {
+interface MailThreadsResponse {
 	page: number;
 	pageSize: number;
 	total: number;
-	items: MailListItem[];
+	items: MailThreadItem[];
 }
 
-interface MailDetail {
-	id: number;
-	messageId: string | null;
-	fromOrg: string | null;
-	fromAddr: string | null;
-	toAddr: string | null;
-	subject: string | null;
-	topic: string | null;
-	code: string | null;
-	createdAt: string | null;
+interface MailThreadDetail extends MailThreadItem {
 	raw: string | null;
 	textBody: string | null;
 	htmlBody: string | null;
 }
 
+interface UiSettings {
+	density: DensityMode;
+	readingPane: ReadingPaneMode;
+	theme: ThemeMode;
+	shortcutsEnabled: boolean;
+}
+
+const PAGE_SIZE = 30;
+const DEFAULT_SETTINGS: UiSettings = {
+	density: 'default',
+	readingPane: 'right',
+	theme: 'dark',
+	shortcutsEnabled: true,
+};
+
+const CATEGORY_TABS: Array<{ id: CategoryView; label: string }> = [
+	{ id: 'all', label: 'All' },
+	{ id: 'primary', label: 'Primary' },
+	{ id: 'social', label: 'Social' },
+	{ id: 'promotions', label: 'Promotions' },
+	{ id: 'updates', label: 'Updates' },
+	{ id: 'forums', label: 'Forums' },
+];
+
+const INBOX_ITEMS: Array<{ id: InboxView; label: string }> = [
+	{ id: 'inbox', label: 'Inbox' },
+	{ id: 'starred', label: 'Starred' },
+	{ id: 'important', label: 'Important' },
+	{ id: 'unread', label: 'Unread' },
+	{ id: 'archive', label: 'Archive' },
+	{ id: 'snoozed', label: 'Snoozed' },
+	{ id: 'trash', label: 'Trash' },
+];
+
 function formatDate(value: string | null): string {
-	if (!value) {
-		return '-';
+	if (!value) return '-';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	const now = new Date();
+	const sameDay =
+		now.getFullYear() === date.getFullYear()
+		&& now.getMonth() === date.getMonth()
+		&& now.getDate() === date.getDate();
+	if (sameDay) {
+		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
+	return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function formatDateLong(value: string | null): string {
+	if (!value) return '-';
 	const date = new Date(value);
 	return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
@@ -57,13 +138,13 @@ function codeAndLink(value: string | null): { code: string | null; link: string 
 	const urlMatch = value.match(/https?:\/\/\S+/);
 	if (urlMatch) {
 		const link = urlMatch[0];
-		const beforeUrl = value.slice(0, urlMatch.index).replace(/,\s*$/, '').trim();
-		return { code: beforeUrl || null, link };
+		const before = value.slice(0, urlMatch.index).replace(/,\s*$/, '').trim();
+		return { code: before || null, link };
 	}
 	return { code: value.trim() || null, link: null };
 }
 
-function toPreviewHtml(htmlBody: string, hideRemoteImages: boolean): string {
+function toPreviewHtml(htmlBody: string, hideRemoteImages: boolean, theme: 'dark' | 'light'): string {
 	const sanitized = DOMPurify.sanitize(htmlBody, {
 		USE_PROFILES: { html: true },
 		FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
@@ -79,14 +160,15 @@ function toPreviewHtml(htmlBody: string, hideRemoteImages: boolean): string {
 		anchor.setAttribute('rel', 'noopener noreferrer');
 	});
 
+	const isDark = theme === 'dark';
 	return `<!doctype html>
 <html>
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<style>
-		body { margin: 0; padding: 20px; font-family: "Manrope", sans-serif; color: #e5e5e5; background: #000000; line-height: 1.5; }
-		a { color: #5fe0c0; }
+		body { margin: 0; padding: 20px; font-family: "Roboto", "Segoe UI", sans-serif; color: ${isDark ? '#e8eaed' : '#202124'}; background: ${isDark ? '#202124' : '#ffffff'}; line-height: 1.5; }
+		a { color: ${isDark ? '#8ab4f8' : '#1a73e8'}; }
 		pre { white-space: pre-wrap; word-break: break-word; }
 		img { max-width: 100%; height: auto; border-radius: 8px; }
 	</style>
@@ -96,12 +178,7 @@ function toPreviewHtml(htmlBody: string, hideRemoteImages: boolean): string {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-	const response = await fetch(url, {
-		headers: {
-			Accept: 'application/json',
-		},
-	});
-
+	const response = await fetch(url, { headers: { Accept: 'application/json' } });
 	if (!response.ok) {
 		const text = await response.text();
 		throw new Error(text || `Request failed (${response.status})`);
@@ -109,288 +186,804 @@ async function fetchJson<T>(url: string): Promise<T> {
 	return (await response.json()) as T;
 }
 
+async function sendJson<TResponse>(url: string, body: unknown, method: 'POST' | 'PUT' = 'POST'): Promise<TResponse> {
+	const response = await fetch(url, {
+		method,
+		headers: {
+			'Content-Type': 'application/json',
+			Accept: 'application/json',
+		},
+		body: JSON.stringify(body),
+	});
+	if (!response.ok) {
+		const text = await response.text();
+		throw new Error(text || `Request failed (${response.status})`);
+	}
+	return (await response.json()) as TResponse;
+}
+
+function isEditableElement(target: EventTarget | null): boolean {
+	if (!(target instanceof HTMLElement)) return false;
+	const tag = target.tagName.toLowerCase();
+	return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+}
+
+function rowDensityClass(density: DensityMode): string {
+	if (density === 'compact') return 'min-h-11 py-1.5';
+	if (density === 'comfortable') return 'min-h-14 py-2.5';
+	return 'min-h-16 py-3';
+}
+
 function App(): JSX.Element {
+	const [settings, setSettings] = useState<UiSettings>(DEFAULT_SETTINGS);
+	const [systemThemeDark, setSystemThemeDark] = useState(true);
+	const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+	const [sidebarOpen, setSidebarOpen] = useState(false);
+
+	const [inbox, setInbox] = useState<InboxView>('inbox');
+	const [category, setCategory] = useState<CategoryView>('all');
 	const [page, setPage] = useState(1);
-	const [list, setList] = useState<MailListResponse>({ page: 1, pageSize: PAGE_SIZE, total: 0, items: [] });
+	const [queryInput, setQueryInput] = useState('');
+	const [query, setQuery] = useState('');
+
+	const [list, setList] = useState<MailThreadsResponse>({ page: 1, pageSize: PAGE_SIZE, total: 0, items: [] });
 	const [isListLoading, setIsListLoading] = useState(true);
 	const [listError, setListError] = useState<string | null>(null);
-	const [selectedMailId, setSelectedMailId] = useState<number | null>(null);
 
-	const [detail, setDetail] = useState<MailDetail | null>(null);
+	const [selectedId, setSelectedId] = useState<number | null>(null);
+	const [selectedIds, setSelectedIds] = useState<number[]>([]);
+	const [detail, setDetail] = useState<MailThreadDetail | null>(null);
 	const [isDetailLoading, setIsDetailLoading] = useState(false);
 	const [detailError, setDetailError] = useState<string | null>(null);
+	const [detailTab, setDetailTab] = useState<'extracted' | 'raw' | 'rendered'>('extracted');
 	const [hideRemoteImages, setHideRemoteImages] = useState(true);
+	const [singlePaneOpen, setSinglePaneOpen] = useState(false);
+	const [isActionLoading, setIsActionLoading] = useState(false);
 
-	const totalPages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
+	const searchInputRef = useRef<HTMLInputElement | null>(null);
+	const comboRef = useRef<string | null>(null);
+	const comboTimeoutRef = useRef<number | null>(null);
 
-	const refreshList = (): void => {
+	const effectiveTheme: 'dark' | 'light' =
+		settings.theme === 'system' ? (systemThemeDark ? 'dark' : 'light') : settings.theme;
+	const totalPages = Math.max(1, Math.ceil(list.total / list.pageSize));
+
+	const loadSettings = useCallback(async (): Promise<void> => {
+		try {
+			const payload = await fetchJson<UiSettings>('/api/v2/settings');
+			setSettings(payload);
+		} catch (error) {
+			console.error(error);
+		}
+	}, []);
+
+	const updateSettings = useCallback(
+		async (patch: Partial<UiSettings>): Promise<void> => {
+			const previous = settings;
+			const next = { ...settings, ...patch };
+			setSettings(next);
+			try {
+				const payload = await sendJson<UiSettings>('/api/v2/settings', next, 'PUT');
+				setSettings(payload);
+			} catch (error) {
+				setSettings(previous);
+				toast.error(error instanceof Error ? error.message : 'Unable to update settings');
+			}
+		},
+		[settings]
+	);
+
+	const loadList = useCallback(async (): Promise<void> => {
 		setIsListLoading(true);
 		setListError(null);
-		fetchJson<MailListResponse>(`/api/mails?page=${page}&pageSize=${PAGE_SIZE}`)
-			.then((payload) => {
-				setList(payload);
-				setSelectedMailId((previousId) => {
-					if (previousId && payload.items.some((item) => item.id === previousId)) {
-						return previousId;
-					}
-					return payload.items[0]?.id ?? null;
-				});
-			})
-			.catch((error: unknown) => {
-				setListError(error instanceof Error ? error.message : 'Unable to load mail list.');
-			})
-			.finally(() => {
-				setIsListLoading(false);
+		try {
+			const params = new URLSearchParams();
+			params.set('page', String(page));
+			params.set('pageSize', String(PAGE_SIZE));
+			params.set('inbox', inbox);
+			if (category !== 'all') params.set('category', category);
+			if (query.trim()) params.set('q', query.trim());
+
+			const payload = await fetchJson<MailThreadsResponse>(`/api/v2/threads?${params.toString()}`);
+			setList(payload);
+			setSelectedIds((prev) => prev.filter((id) => payload.items.some((item) => item.id === id)));
+			setSelectedId((prev) => {
+				if (prev && payload.items.some((item) => item.id === prev)) return prev;
+				return payload.items[0]?.id ?? null;
 			});
-	};
+		} catch (error) {
+			setListError(error instanceof Error ? error.message : 'Unable to load threads');
+		} finally {
+			setIsListLoading(false);
+		}
+	}, [category, inbox, page, query]);
+
+	const loadDetail = useCallback(async (id: number): Promise<void> => {
+		setIsDetailLoading(true);
+		setDetailError(null);
+		setHideRemoteImages(true);
+		try {
+			const payload = await fetchJson<MailThreadDetail>(`/api/v2/threads/${id}`);
+			setDetail(payload);
+		} catch (error) {
+			setDetailError(error instanceof Error ? error.message : 'Unable to load thread detail');
+		} finally {
+			setIsDetailLoading(false);
+		}
+	}, []);
+
+	const selectionIds = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
+
+	const runAction = useCallback(
+		async (action: ThreadAction, extra: Record<string, unknown> = {}): Promise<void> => {
+			if (selectionIds.length === 0) {
+				toast.message('Select at least one email');
+				return;
+			}
+			setIsActionLoading(true);
+			try {
+				await sendJson('/api/v2/threads/actions', {
+					action,
+					ids: selectionIds,
+					...extra,
+				});
+				await loadList();
+				if (selectedId && selectionIds.includes(selectedId)) {
+					await loadDetail(selectedId);
+				}
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : 'Action failed');
+			} finally {
+				setIsActionLoading(false);
+			}
+		},
+		[loadDetail, loadList, selectedId, selectionIds]
+	);
 
 	useEffect(() => {
-		refreshList();
-	}, [page]);
+		const media = window.matchMedia('(prefers-color-scheme: dark)');
+		const sync = (): void => setSystemThemeDark(media.matches);
+		sync();
+		media.addEventListener('change', sync);
+		return () => media.removeEventListener('change', sync);
+	}, []);
 
 	useEffect(() => {
-		if (!selectedMailId) {
+		void loadSettings();
+	}, [loadSettings]);
+
+	useEffect(() => {
+		void loadList();
+	}, [loadList]);
+
+	useEffect(() => {
+		if (!selectedId) {
 			setDetail(null);
 			return;
 		}
-		setHideRemoteImages(true);
-		setDetailError(null);
-		setIsDetailLoading(true);
+		void loadDetail(selectedId);
+	}, [loadDetail, selectedId]);
 
-		fetchJson<MailDetail>(`/api/mails/${selectedMailId}`)
-			.then((payload) => {
-				setDetail(payload);
-			})
-			.catch((error: unknown) => {
-				setDetailError(error instanceof Error ? error.message : 'Unable to load mail details.');
-			})
-			.finally(() => {
-				setIsDetailLoading(false);
-			});
-	}, [selectedMailId]);
+	useEffect(() => {
+		if (!settings.shortcutsEnabled) return undefined;
+
+		const clearCombo = (): void => {
+			comboRef.current = null;
+			if (comboTimeoutRef.current) {
+				window.clearTimeout(comboTimeoutRef.current);
+				comboTimeoutRef.current = null;
+			}
+		};
+
+		const onKeyDown = (event: KeyboardEvent): void => {
+			if (isEditableElement(event.target)) return;
+			if (event.ctrlKey || event.metaKey || event.altKey) return;
+			const key = event.key.toLowerCase();
+
+			if (comboRef.current === 'g') {
+				clearCombo();
+				if (key === 'i') {
+					event.preventDefault();
+					setInbox('inbox');
+					setPage(1);
+					return;
+				}
+				if (key === 's') {
+					event.preventDefault();
+					setInbox('starred');
+					setPage(1);
+					return;
+				}
+				if (key === 'a') {
+					event.preventDefault();
+					setInbox('archive');
+					setPage(1);
+					return;
+				}
+				if (key === 'u') {
+					event.preventDefault();
+					setInbox('unread');
+					setPage(1);
+					return;
+				}
+			}
+
+			if (key === 'g') {
+				comboRef.current = 'g';
+				if (comboTimeoutRef.current) {
+					window.clearTimeout(comboTimeoutRef.current);
+				}
+				comboTimeoutRef.current = window.setTimeout(clearCombo, 1500);
+				return;
+			}
+
+			if (key === '/') {
+				event.preventDefault();
+				searchInputRef.current?.focus();
+				return;
+			}
+
+			if (key === '?') {
+				event.preventDefault();
+				setShowShortcutHelp(true);
+				return;
+			}
+
+			if (list.items.length === 0) return;
+			const currentIndex = list.items.findIndex((item) => item.id === selectedId);
+
+			if (key === 'j') {
+				event.preventDefault();
+				const next = list.items[Math.min(list.items.length - 1, Math.max(0, currentIndex + 1))];
+				if (next) setSelectedId(next.id);
+				return;
+			}
+
+			if (key === 'k') {
+				event.preventDefault();
+				const next = list.items[Math.max(0, currentIndex <= 0 ? 0 : currentIndex - 1)];
+				if (next) setSelectedId(next.id);
+				return;
+			}
+
+			if (key === 'x' && selectedId) {
+				event.preventDefault();
+				setSelectedIds((prev) => (prev.includes(selectedId) ? prev.filter((id) => id !== selectedId) : [...prev, selectedId]));
+				return;
+			}
+
+			if (key === 'u') {
+				event.preventDefault();
+				setSelectedIds([]);
+				return;
+			}
+
+			if (key === 'e') {
+				event.preventDefault();
+				void runAction('archive');
+				return;
+			}
+
+			if (key === '#') {
+				event.preventDefault();
+				void runAction('delete');
+				return;
+			}
+
+			if (key === 's' && selectedId) {
+				event.preventDefault();
+				const current = list.items.find((item) => item.id === selectedId);
+				void runAction(current?.isStarred ? 'unstar' : 'star');
+				return;
+			}
+
+			if (event.shiftKey && key === 'i') {
+				event.preventDefault();
+				void runAction('read');
+				return;
+			}
+
+			if (event.shiftKey && key === 'u') {
+				event.preventDefault();
+				void runAction('unread');
+				return;
+			}
+		};
+
+		window.addEventListener('keydown', onKeyDown);
+		return () => {
+			window.removeEventListener('keydown', onKeyDown);
+			clearCombo();
+		};
+	}, [list.items, runAction, selectedId, settings.shortcutsEnabled]);
 
 	const previewHtml = useMemo(() => {
-		if (!detail?.htmlBody) {
-			return null;
+		if (!detail?.htmlBody) return null;
+		return toPreviewHtml(detail.htmlBody, hideRemoteImages, effectiveTheme);
+	}, [detail?.htmlBody, effectiveTheme, hideRemoteImages]);
+
+	const selectThread = (id: number): void => {
+		setSelectedId(id);
+		if (settings.readingPane === 'none') {
+			setSinglePaneOpen(true);
 		}
-		return toPreviewHtml(detail.htmlBody, hideRemoteImages);
-	}, [detail?.htmlBody, hideRemoteImages]);
+	};
+
+	const applySearch = (next: string): void => {
+		setQuery(next.trim());
+		setPage(1);
+	};
+
+	const applySearchToken = (token: string): void => {
+		const current = queryInput.trim();
+		const next = current ? `${current} ${token}` : token;
+		setQueryInput(next);
+		applySearch(next);
+	};
+
+	const showDetailPane = settings.readingPane !== 'none' || singlePaneOpen;
 
 	return (
-		<div className="min-h-screen bg-background text-slate-100">
-			<Toaster theme="dark" position="bottom-right" closeButton />
-			<div className="pointer-events-none fixed inset-0 bg-[radial-gradient(1200px_500px_at_10%_0%,rgba(95,224,192,0.08),transparent)]" />
-			<main className="relative mx-auto w-full max-w-[1300px] px-4 pb-8 pt-6 lg:px-8">
-				<header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-					<div>
-						<div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-							<ShieldCheck className="h-4 w-4" />
-							Private Mail Console
+		<div className={cn('gmail-root min-h-screen', effectiveTheme === 'light' ? 'theme-light' : 'theme-dark')}>
+			<Toaster theme={effectiveTheme === 'light' ? 'light' : 'dark'} position="bottom-right" closeButton />
+
+			<header className="gmail-topbar sticky top-0 z-40 flex items-center gap-3 border-b px-3 py-2 sm:px-4">
+				<Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen((open) => !open)}>
+					<Menu className="h-5 w-5" />
+				</Button>
+				<div className="flex min-w-[145px] items-center gap-2">
+					<ShieldCheck className="h-5 w-5 text-primary" />
+					<div className="font-semibold tracking-tight">AuthInbox Mail</div>
+				</div>
+
+				<form
+					className="gmail-search flex-1"
+					onSubmit={(event) => {
+						event.preventDefault();
+						applySearch(queryInput);
+					}}
+				>
+					<Search className="h-4 w-4 text-muted-foreground" />
+					<input
+						ref={searchInputRef}
+						type="text"
+						value={queryInput}
+						onChange={(event) => setQueryInput(event.target.value)}
+						placeholder="Search mail (from:, subject:, is:, has:, in:, category:)"
+						className="flex-1 border-0 bg-transparent text-sm outline-none"
+					/>
+					{queryInput ? (
+						<button
+							type="button"
+							onClick={() => {
+								setQueryInput('');
+								applySearch('');
+							}}
+							className="rounded p-1 text-muted-foreground hover:bg-accent"
+						>
+							<X className="h-4 w-4" />
+						</button>
+					) : null}
+				</form>
+
+				<div className="flex items-center gap-1">
+					<Button variant="ghost" size="icon" onClick={() => void loadList()} disabled={isListLoading}>
+						<RefreshCw className={cn('h-4 w-4', isListLoading && 'animate-spin')} />
+					</Button>
+					<Button variant="ghost" size="icon" onClick={() => setShowSettingsPanel((open) => !open)}>
+						<Settings className="h-4 w-4" />
+					</Button>
+				</div>
+			</header>
+
+			<div className="relative flex min-h-[calc(100vh-57px)]">
+				<aside
+					className={cn(
+						'gmail-sidebar fixed inset-y-[57px] left-0 z-30 w-[248px] border-r p-3 transition-transform md:static md:translate-x-0',
+						sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+					)}
+				>
+					<div className="space-y-1">
+						{INBOX_ITEMS.map((item) => (
+							<button
+								key={item.id}
+								onClick={() => {
+									setInbox(item.id);
+									setPage(1);
+									setSidebarOpen(false);
+								}}
+								className={cn(
+									'w-full rounded-2xl px-4 py-2 text-left text-sm transition-colors',
+									inbox === item.id ? 'bg-primary/20 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent'
+								)}
+							>
+								{item.label}
+							</button>
+						))}
+					</div>
+					<div className="mt-6 border-t pt-4">
+						<div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Search chips</div>
+						<div className="flex flex-wrap gap-2">
+							{['is:unread', 'has:attachment', 'category:promotions', 'from:noreply'].map((chip) => (
+								<button
+									key={chip}
+									onClick={() => applySearchToken(chip)}
+									className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-accent"
+								>
+									{chip}
+								</button>
+							))}
 						</div>
-						<h1 className="font-sans text-3xl font-bold text-slate-100">Auth Inbox</h1>
-						<p className="mt-1 text-sm text-muted-foreground">Verification messages, raw source, and sanitized HTML preview.</p>
 					</div>
-					<div className="flex items-center gap-2">
-						<Badge>{list.total} Entries</Badge>
-						<Button variant="outline" onClick={refreshList} className="gap-2">
-							<RefreshCw className="h-4 w-4" />
-							Refresh
-						</Button>
-					</div>
-				</header>
+				</aside>
 
-				<div className="grid gap-6 lg:grid-cols-[1.15fr_1fr] [&>*]:min-w-0">
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Inbox className="h-4 w-4 text-primary" />
-								Mail List
-							</CardTitle>
-							<div className="text-xs text-muted-foreground">Page {page} / {totalPages}</div>
-						</CardHeader>
+				<main className="flex-1 overflow-hidden">
+					<div className="flex h-full flex-col">
+						<div className="border-b px-3 pb-2 pt-3 sm:px-4">
+							<div className="mb-2 flex items-center justify-between gap-2">
+								<div className="text-sm text-muted-foreground">{list.total} conversations</div>
+								<div className="flex items-center gap-2">
+									<Button variant="ghost" size="sm" onClick={() => void runAction('archive')} disabled={isActionLoading}>
+										<Archive className="mr-2 h-4 w-4" />Archive
+									</Button>
+									<Button variant="ghost" size="sm" onClick={() => void runAction('delete')} disabled={isActionLoading}>
+										<Trash2 className="mr-2 h-4 w-4" />Delete
+									</Button>
+									<Button variant="ghost" size="sm" onClick={() => void runAction('read')} disabled={isActionLoading}>Mark read</Button>
+									<Button variant="ghost" size="sm" onClick={() => void runAction('unread')} disabled={isActionLoading}>Mark unread</Button>
+								</div>
+							</div>
+							<div className="flex flex-wrap gap-2">
+								{CATEGORY_TABS.map((tab) => (
+									<button
+										key={tab.id}
+										onClick={() => {
+											setCategory(tab.id);
+											setPage(1);
+										}}
+										className={cn(
+											'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+											category === tab.id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent'
+										)}
+									>
+										{tab.label}
+									</button>
+								))}
+							</div>
+						</div>
 
-						{listError ? <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">{listError}</div> : null}
-
-						<div className="overflow-hidden rounded-xl border border-border/80">
-							<div className="max-h-[640px] overflow-auto">
-								<table className="w-full border-collapse text-sm">
-									<thead className="sticky top-0 bg-[#111111] text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
-										<tr>
-											<th className="px-3 py-3">From</th>
-											<th className="hidden px-3 py-3 sm:table-cell">To</th>
-											<th className="px-3 py-3">Subject / Topic</th>
-											<th className="hidden px-3 py-3 sm:table-cell">Time</th>
-										</tr>
-									</thead>
-									<tbody className="divide-y divide-border/80">
-										{isListLoading ? (
-											Array.from({ length: 6 }).map((_, index) => (
-												<tr key={`skeleton-${index}`} className="animate-pulse">
-													<td className="px-3 py-3"><div className="h-3 w-24 rounded bg-slate-500/30" /></td>
-													<td className="hidden px-3 py-3 sm:table-cell"><div className="h-3 w-24 rounded bg-slate-500/30" /></td>
-													<td className="px-3 py-3"><div className="h-3 w-56 rounded bg-slate-500/30" /></td>
-													<td className="hidden px-3 py-3 sm:table-cell"><div className="h-3 w-28 rounded bg-slate-500/30" /></td>
-												</tr>
-											))
+						<div
+							className={cn(
+								'grid min-h-0 flex-1',
+								settings.readingPane === 'right' && 'grid-cols-1 md:grid-cols-[minmax(360px,1fr)_minmax(380px,1.1fr)]',
+								settings.readingPane === 'bottom' && 'grid-cols-1 grid-rows-[1fr_1fr]',
+								settings.readingPane === 'none' && 'grid-cols-1'
+							)}
+						>
+							{(settings.readingPane !== 'none' || !singlePaneOpen) && (
+								<section className="min-h-0 border-r">
+									<div className="h-full overflow-auto">
+										{listError ? (
+											<div className="m-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{listError}</div>
+										) : isListLoading ? (
+											<div className="p-3">
+												{Array.from({ length: 8 }).map((_, index) => (
+													<div key={index} className="mb-2 h-14 animate-pulse rounded-xl bg-secondary" />
+												))}
+											</div>
 										) : list.items.length === 0 ? (
-											<tr>
-												<td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
-													No extracted mails available.
-												</td>
-											</tr>
+											<div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">No emails match this view.</div>
 										) : (
 											list.items.map((item) => {
-												const active = item.id === selectedMailId;
+												const selected = item.id === selectedId;
+												const checked = selectedIds.includes(item.id);
 												return (
-													<tr
+													<div
 														key={item.id}
+														onClick={() => selectThread(item.id)}
 														className={cn(
-															'cursor-pointer bg-transparent transition-colors hover:bg-[#1a1a1a]',
-															active && 'bg-[#252525]'
+															'gmail-thread-row mx-1 my-1 flex cursor-pointer items-start gap-2 rounded-xl px-3 transition-all',
+															rowDensityClass(settings.density),
+															selected && 'bg-primary/15 ring-1 ring-primary/30',
+															!selected && 'hover:bg-accent',
+															!item.isRead && 'font-medium'
 														)}
-														onClick={() => setSelectedMailId(item.id)}
 													>
-														<td className="max-w-[140px] truncate px-3 py-3 font-medium text-slate-100">{item.fromOrg || item.fromAddr || '-'}</td>
-														<td className="hidden max-w-[130px] truncate px-3 py-3 text-slate-300 sm:table-cell">{item.toAddr || '-'}</td>
-														<td className="max-w-[200px] truncate px-3 py-3 text-slate-200 sm:max-w-[320px]">{item.subject || item.topic || '-'}</td>
-														<td className="hidden whitespace-nowrap px-3 py-3 text-xs text-muted-foreground sm:table-cell">{formatDate(item.createdAt)}</td>
-													</tr>
+														<input
+															type="checkbox"
+															checked={checked}
+															onChange={(event) => {
+																event.stopPropagation();
+																setSelectedIds((prev) => (checked ? prev.filter((id) => id !== item.id) : [...prev, item.id]));
+															}}
+															className="mt-1 h-4 w-4 rounded border accent-primary"
+														/>
+														<button
+															type="button"
+															onClick={(event) => {
+																event.stopPropagation();
+																void sendJson('/api/v2/threads/actions', {
+																	action: item.isStarred ? 'unstar' : 'star',
+																	ids: [item.id],
+																}).then(() => loadList());
+															}}
+															className="mt-0.5 rounded p-1 text-muted-foreground hover:bg-secondary"
+														>
+															<Star className={cn('h-4 w-4', item.isStarred && 'fill-yellow-400 text-yellow-400')} />
+														</button>
+														<div className="min-w-0 flex-1">
+															<div className="flex items-center justify-between gap-2">
+																<div className="truncate text-sm">{item.fromOrg || item.fromAddr || 'Unknown sender'}</div>
+																<div className="shrink-0 text-xs text-muted-foreground">{formatDate(item.createdAt)}</div>
+															</div>
+															<div className="truncate text-sm text-muted-foreground">
+																<span className="text-foreground">{item.subject || item.topic || '(No subject)'}</span>
+																<span className="mx-1">-</span>
+																{item.snippet || 'No preview available'}
+															</div>
+															<div className="mt-1 flex gap-1">
+																<span className="rounded bg-secondary px-2 py-0.5 text-[10px] uppercase text-muted-foreground">{item.category}</span>
+																{item.hasCode ? <span className="rounded bg-primary/20 px-2 py-0.5 text-[10px] text-primary">Code</span> : null}
+															</div>
+														</div>
+													</div>
 												);
 											})
 										)}
-									</tbody>
-								</table>
-							</div>
-						</div>
+									</div>
+									<div className="flex items-center justify-between border-t px-3 py-2 text-sm">
+										<Button variant="ghost" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || isListLoading}>
+											<ChevronLeft className="mr-1 h-4 w-4" />Prev
+										</Button>
+										<div className="text-xs text-muted-foreground">Page {page} / {totalPages}</div>
+										<Button variant="ghost" size="sm" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || isListLoading}>
+											Next<ChevronRight className="ml-1 h-4 w-4" />
+										</Button>
+									</div>
+								</section>
+							)}
 
-						<div className="mt-4 flex items-center justify-between">
-							<Button variant="ghost" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || isListLoading}>
-								Previous
-							</Button>
-							<Button variant="ghost" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || isListLoading}>
-								Next
-							</Button>
-						</div>
-					</Card>
+							{showDetailPane && (
+								<section className="min-h-0 overflow-auto">
+									{settings.readingPane === 'none' && singlePaneOpen ? (
+										<div className="border-b px-3 py-2">
+											<Button variant="ghost" size="sm" onClick={() => setSinglePaneOpen(false)}>
+												<ChevronLeft className="mr-2 h-4 w-4" />Back to list
+											</Button>
+										</div>
+									) : null}
 
-					<Card>
-						<CardHeader>
-							<CardTitle>Mail Detail</CardTitle>
-						</CardHeader>
+									{detailError ? (
+										<div className="m-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{detailError}</div>
+									) : !selectedId ? (
+										<div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">Select a thread to inspect details.</div>
+									) : isDetailLoading ? (
+										<div className="space-y-3 p-4">
+											<div className="h-6 w-1/2 animate-pulse rounded bg-secondary" />
+											<div className="h-4 w-3/4 animate-pulse rounded bg-secondary" />
+											<div className="h-64 w-full animate-pulse rounded-xl bg-secondary" />
+										</div>
+									) : detail ? (
+										<div className="p-4">
+											<div className="mb-4 rounded-2xl border p-4">
+												<div className="mb-2 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+													<Inbox className="h-3.5 w-3.5" />
+													{detail.category}
+													{detail.hasCode ? <span className="rounded bg-primary/20 px-2 py-0.5 text-primary">code extracted</span> : null}
+												</div>
+												<h2 className="text-xl font-semibold">{detail.subject || detail.topic || '(No subject)'}</h2>
+												<div className="mt-2 text-sm text-muted-foreground">From: {detail.fromOrg || detail.fromAddr || '-'}</div>
+												<div className="text-sm text-muted-foreground">To: {detail.toAddr || '-'}</div>
+												<div className="text-sm text-muted-foreground">Received: {formatDateLong(detail.createdAt)}</div>
+											</div>
 
-						{detailError ? <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">{detailError}</div> : null}
+											<div className="mb-3 flex flex-wrap gap-2">
+												{([
+													['extracted', 'Extracted'],
+													['raw', 'Raw Email'],
+													['rendered', 'Rendered'],
+												] as const).map(([id, label]) => (
+													<button
+														key={id}
+														onClick={() => setDetailTab(id)}
+														className={cn(
+															'rounded-full px-3 py-1.5 text-xs font-medium',
+															detailTab === id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent'
+														)}
+													>
+														{label}
+													</button>
+												))}
+											</div>
 
-						{!selectedMailId ? (
-							<div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">Select one row from the list to inspect details.</div>
-						) : isDetailLoading ? (
-							<div className="space-y-3">
-								<div className="h-4 w-1/2 animate-pulse rounded bg-slate-500/30" />
-								<div className="h-4 w-full animate-pulse rounded bg-slate-500/30" />
-								<div className="h-44 w-full animate-pulse rounded bg-slate-500/30" />
-							</div>
-						) : detail ? (
-							<>
-								<div className="mb-4 grid gap-2 rounded-lg border border-border/80 bg-[#111111] p-3 text-sm text-slate-300">
-									<div><span className="text-muted-foreground">From:</span> {detail.fromOrg || detail.fromAddr || '-'}</div>
-									<div><span className="text-muted-foreground">To:</span> {detail.toAddr || '-'}</div>
-									<div><span className="text-muted-foreground">Subject:</span> {detail.subject || '-'}</div>
-									<div><span className="text-muted-foreground">Received:</span> {formatDate(detail.createdAt)}</div>
-								</div>
+											{detailTab === 'extracted' ? (
+												<div className="rounded-2xl border p-4 text-sm">
+													<div className="mb-2"><span className="text-muted-foreground">Topic:</span> {detail.topic || '-'}</div>
+													{(() => {
+														const parsed = codeAndLink(detail.code);
+														return (
+															<>
+																<div className="mb-2 flex items-center gap-2">
+																	<span className="text-muted-foreground">Code:</span>
+																	{parsed.code ? (
+																		<>
+																			<span className="font-mono text-primary">{parsed.code}</span>
+																			<Button
+																				variant="outline"
+																				size="sm"
+																				onClick={() => {
+																					navigator.clipboard.writeText(parsed.code ?? '');
+																					toast.success('Code copied');
+																				}}
+																			>
+																				<Copy className="mr-1 h-3.5 w-3.5" />Copy
+																			</Button>
+																		</>
+																	) : (
+																		'-'
+																	)}
+																</div>
+																<div className="flex items-center gap-2">
+																	<span className="text-muted-foreground">Link:</span>
+																	{parsed.link ? (
+																		<Button
+																			variant="outline"
+																			size="sm"
+																			onClick={() => {
+																				navigator.clipboard.writeText(parsed.link ?? '');
+																				toast.success('Link copied');
+																			}}
+																		>
+																			<Copy className="mr-1 h-3.5 w-3.5" />Copy link
+																		</Button>
+																	) : (
+																		'-'
+																	)}
+																</div>
+															</>
+														);
+													})()}
+												</div>
+											) : null}
 
-								<Tabs defaultValue="parsed">
-									<TabsList>
-										<TabsTrigger value="parsed">Extracted</TabsTrigger>
-										<TabsTrigger value="raw">Raw Email</TabsTrigger>
-										<TabsTrigger value="rendered">Rendered</TabsTrigger>
-									</TabsList>
+											{detailTab === 'raw' ? (
+												<pre className="max-h-[520px] overflow-auto rounded-2xl border bg-muted/30 p-4 font-mono text-xs leading-6">
+													{detail.raw || 'No raw content.'}
+												</pre>
+											) : null}
 
-									<TabsContent value="parsed">
-										<div className="space-y-3 rounded-lg border border-border/80 bg-[#111111] p-4 text-sm text-slate-200">
-											<div><span className="text-muted-foreground">Topic:</span> {detail.topic || '-'}</div>
-											{(() => {
-												const parsedCode = codeAndLink(detail.code);
-												return (
-													<>
-														<div className="flex items-center gap-2">
-												<span className="text-muted-foreground">Code:</span>
-												{parsedCode.code ? (
-													parsedCode.code.startsWith('http') ? (
-														<Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => { navigator.clipboard.writeText(parsedCode.code!); toast.success('Code copied'); }}>
-															<Copy className="h-3 w-3" />Copy code
-														</Button>
+											{detailTab === 'rendered' ? (
+												<div>
+													<div className="mb-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+														<div>HTML preview is sanitized and sandboxed.</div>
+														<label className="inline-flex items-center gap-2">
+															<input
+																type="checkbox"
+																className="h-4 w-4 accent-primary"
+																checked={hideRemoteImages}
+																onChange={(event) => setHideRemoteImages(event.target.checked)}
+															/>
+															Hide remote images
+														</label>
+													</div>
+													{previewHtml ? (
+														<iframe title="mail-preview" sandbox="" srcDoc={previewHtml} className="h-[560px] w-full rounded-2xl border" />
+													) : detail.textBody ? (
+														<pre className="max-h-[520px] overflow-auto rounded-2xl border bg-muted/30 p-4 font-mono text-xs leading-6">
+															{detail.textBody}
+														</pre>
 													) : (
-														<span className="font-mono font-semibold text-primary">{parsedCode.code}</span>
-													)
-												) : '-'}
-											</div>
-														<div className="flex items-center gap-2">
-															<span className="text-muted-foreground">Link:</span>
-															{parsedCode.link ? (
-																<Button
-																	variant="outline"
-																	size="sm"
-																	className="h-7 gap-1.5 text-xs"
-																	onClick={() => {
-																		navigator.clipboard.writeText(parsedCode.link!);
-																		toast.success('Link copied');
-																	}}
-																>
-																	<Copy className="h-3 w-3" />
-																	Copy link
-																</Button>
-															) : '-'}
-														</div>
-													</>
-												);
-											})()}
+														<div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">No renderable content found.</div>
+													)}
+												</div>
+											) : null}
 										</div>
-									</TabsContent>
+									) : null}
+								</section>
+							)}
+						</div>
+					</div>
+				</main>
 
-									<TabsContent value="raw">
-										<pre className="max-h-[420px] overflow-auto rounded-lg border border-border/80 bg-[#0a0a0a] p-4 font-mono text-xs leading-6 text-slate-300">
-											{detail.raw || 'No raw email payload saved.'}
-										</pre>
-									</TabsContent>
-
-									<TabsContent value="rendered">
-										<div className="mb-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-											<div>HTML is sanitized before preview and loaded in a sandboxed iframe.</div>
-											<label className="inline-flex cursor-pointer items-center gap-2">
-												<input
-													type="checkbox"
-													className="h-4 w-4 accent-primary"
-													checked={hideRemoteImages}
-													onChange={(event) => setHideRemoteImages(event.target.checked)}
-												/>
-												Hide remote images
-											</label>
-										</div>
-
-										{previewHtml ? (
-											<iframe
-												title="mail-preview"
-												sandbox=""
-												srcDoc={previewHtml}
-												className="h-[460px] w-full rounded-lg border border-border bg-[#000000]"
-											/>
-										) : detail.textBody ? (
-											<pre className="max-h-[420px] overflow-auto rounded-lg border border-border/80 bg-[#0a0a0a] p-4 font-mono text-xs leading-6 text-slate-300">
-												{detail.textBody}
-											</pre>
-										) : (
-											<div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-												No renderable body found for this email.
-											</div>
-										)}
-									</TabsContent>
-								</Tabs>
-							</>
-						) : (
-							<div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">No details loaded.</div>
-						)}
-					</Card>
+				<div className="hidden w-[56px] border-l lg:block">
+					<div className="flex h-full flex-col items-center gap-3 py-4">
+						<button className="rounded-full p-2 text-muted-foreground hover:bg-accent" aria-label="Alerts">
+							<Bell className="h-4 w-4" />
+						</button>
+						<button className="rounded-full p-2 text-muted-foreground hover:bg-accent" aria-label="Settings">
+							<Settings className="h-4 w-4" />
+						</button>
+					</div>
 				</div>
-			</main>
+
+				{showSettingsPanel && (
+					<div className="fixed inset-y-[57px] right-0 z-40 w-[320px] border-l bg-background p-4 shadow-2xl">
+						<div className="mb-4 flex items-center justify-between">
+							<div className="font-semibold">Quick settings</div>
+							<Button variant="ghost" size="icon" onClick={() => setShowSettingsPanel(false)}>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
+
+						<div className="space-y-4 text-sm">
+							<label className="block">
+								<div className="mb-1 text-muted-foreground">Density</div>
+								<select
+									value={settings.density}
+									onChange={(event) => void updateSettings({ density: event.target.value as DensityMode })}
+									className="w-full rounded-lg border bg-background px-3 py-2"
+								>
+									<option value="default">Default</option>
+									<option value="comfortable">Comfortable</option>
+									<option value="compact">Compact</option>
+								</select>
+							</label>
+
+							<label className="block">
+								<div className="mb-1 text-muted-foreground">Reading pane</div>
+								<select
+									value={settings.readingPane}
+									onChange={(event) => void updateSettings({ readingPane: event.target.value as ReadingPaneMode })}
+									className="w-full rounded-lg border bg-background px-3 py-2"
+								>
+									<option value="none">No split</option>
+									<option value="right">Right of inbox</option>
+									<option value="bottom">Below inbox</option>
+								</select>
+							</label>
+
+							<label className="block">
+								<div className="mb-1 text-muted-foreground">Theme</div>
+								<select
+									value={settings.theme}
+									onChange={(event) => void updateSettings({ theme: event.target.value as ThemeMode })}
+									className="w-full rounded-lg border bg-background px-3 py-2"
+								>
+									<option value="dark">Dark</option>
+									<option value="light">Light</option>
+									<option value="system">System</option>
+								</select>
+							</label>
+
+							<label className="flex items-center justify-between rounded-lg border px-3 py-2">
+								<span>Keyboard shortcuts</span>
+								<input
+									type="checkbox"
+									checked={settings.shortcutsEnabled}
+									onChange={(event) => void updateSettings({ shortcutsEnabled: event.target.checked })}
+									className="h-4 w-4 accent-primary"
+								/>
+							</label>
+						</div>
+					</div>
+				)}
+
+				{showShortcutHelp && (
+					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+						<div className="w-full max-w-xl rounded-2xl border bg-background p-4 shadow-2xl">
+							<div className="mb-3 flex items-center justify-between">
+								<div className="text-lg font-semibold">Keyboard shortcuts</div>
+								<Button variant="ghost" size="icon" onClick={() => setShowShortcutHelp(false)}>
+									<X className="h-4 w-4" />
+								</Button>
+							</div>
+							<div className="grid gap-2 text-sm">
+								<div><strong>/</strong> focus search</div>
+								<div><strong>j / k</strong> next or previous thread</div>
+								<div><strong>x</strong> select current thread</div>
+								<div><strong>e</strong> archive</div>
+								<div><strong>#</strong> delete</div>
+								<div><strong>s</strong> toggle star</div>
+								<div><strong>Shift + i</strong> mark read</div>
+								<div><strong>Shift + u</strong> mark unread</div>
+								<div><strong>g then i</strong> go inbox</div>
+								<div><strong>g then s</strong> go starred</div>
+							</div>
+						</div>
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

@@ -75,7 +75,7 @@ try {
   const checks = {
     status_200: readyResponse.status === 200,
     has_react_root: rootBody.includes('<div id="root"></div>'),
-    api_not_found_404: apiProbe.status === 404,
+    api_probe_protected_or_not_found: apiProbe.status === 401 || apiProbe.status === 404,
     api_has_nosniff: apiProbe.headers.get("x-content-type-options") === "nosniff",
     api_has_referrer_policy: apiProbe.headers.get("referrer-policy") === "no-referrer",
   };
@@ -83,7 +83,7 @@ try {
   const failedChecks = Object.entries(checks).filter(([, value]) => !value);
   if (failedChecks.length > 0) {
     throw new Error(
-      `Assets smoke checks failed: ${failedChecks.map(([name]) => name).join(", ")}`
+      `Assets smoke checks failed: ${failedChecks.map(([name]) => name).join(", ")} (api status=${apiProbe.status})`
     );
   }
 

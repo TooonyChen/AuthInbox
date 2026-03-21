@@ -54,7 +54,7 @@ export default {
     		},
     		fontFamily: {
     			sans: [
-    				'Manrope',
+    				'Roboto',
     				'ui-sans-serif',
     				'system-ui'
     			],

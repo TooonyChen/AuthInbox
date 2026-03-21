@@ -36,6 +36,7 @@ flowchart LR
 - **Promotional Filter**: Detects and skips bulk/marketing emails via headers (`List-Unsubscribe`, `Precedence: bulk`, etc.) before calling the AI — saves tokens.
 - **AI Code Extraction**: Uses Google Gemini (with OpenAI as fallback) to extract verification codes, links, and organization names.
 - **Modern Dashboard**: React 18 + shadcn/ui interface with mail list, detail panel, and three tabs — Extracted, Raw Email, Rendered HTML preview.
+- **Gmail-like Admin UI**: Inbox categories, search operators, keyboard shortcuts, configurable reading pane (`none/right/bottom`), and density modes (`default/comfortable/compact`).
 - **Safe HTML Preview**: Email HTML is sanitized with DOMPurify and rendered in a sandboxed iframe.
 - **One-click Copy**: Verification codes and links have copy buttons with toast confirmation.
 - **Real-Time Notifications**: Optionally sends Bark push notifications when new codes arrive.
@@ -114,6 +115,7 @@ flowchart LR
    ```bash
    corepack pnpm exec wrangler d1 create inbox-d1
    corepack pnpm exec wrangler d1 execute inbox-d1 --remote --file=./db/schema.sql
+   corepack pnpm exec wrangler d1 execute inbox-d1 --remote --file=./db/migrations/001_gmail_ui.sql
    ```
 
    Copy the `database_id` from the output.

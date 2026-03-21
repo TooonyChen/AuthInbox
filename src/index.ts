@@ -11,6 +11,26 @@ import { RPCEmailMessage } from "./rpcEmail";
 import indexHtml from "./index.html";
 
 type ApiFormat = "openai" | "responses" | "anthropic";
+type DensityMode = "default" | "comfortable" | "compact";
+type ReadingPaneMode = "none" | "right" | "bottom";
+type ThemeMode = "dark" | "light" | "system";
+
+type ThreadAction =
+  | "read"
+  | "unread"
+  | "star"
+  | "unstar"
+  | "archive"
+  | "unarchive"
+  | "delete"
+  | "restore"
+  | "important"
+  | "not-important"
+  | "snooze"
+  | "label-add"
+  | "label-remove";
+
+type MailCategory = "primary" | "social" | "promotions" | "updates" | "forums";
 
 interface ProviderConfig {
   baseUrl: string;
@@ -39,6 +59,46 @@ interface Env {
   AI_FALLBACK_MODEL?: string;
 }
 
+interface UiSettingsRow {
+  density: DensityMode;
+  reading_pane: ReadingPaneMode;
+  theme: ThemeMode;
+  shortcuts_enabled: number;
+}
+
+interface ThreadQueryResultRow {
+  rawId: number;
+  messageId: string | null;
+  fromAddr: string | null;
+  toAddr: string | null;
+  subject: string | null;
+  raw: string | null;
+  createdAt: string | null;
+  fromOrg: string | null;
+  topic: string | null;
+  code: string | null;
+  isRead: number | null;
+  isStarred: number | null;
+  isArchived: number | null;
+  isDeleted: number | null;
+  isImportant: number | null;
+  isMuted: number | null;
+  category: string | null;
+  labelsJson: string | null;
+  snoozedUntil: string | null;
+}
+
+interface SearchTokens {
+  from: string[];
+  to: string[];
+  subject: string[];
+  text: string[];
+  categories: MailCategory[];
+  inMailbox: Array<"inbox" | "archive" | "trash" | "anywhere" | "snoozed">;
+  isFlags: Array<"read" | "unread" | "starred" | "important" | "muted">;
+  hasFlags: Array<"attachment">;
+}
+
 const NO_STORE_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   Pragma: "no-cache",
@@ -50,6 +110,50 @@ const HARDENING_HEADERS: Record<string, string> = {
 };
 
 const MAX_PROMPT_BODY_LENGTH = 8000;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+const CATEGORY_VALUES: MailCategory[] = ["primary", "social", "promotions", "updates", "forums"];
+const DENSITY_VALUES: DensityMode[] = ["default", "comfortable", "compact"];
+const READING_PANE_VALUES: ReadingPaneMode[] = ["none", "right", "bottom"];
+const THEME_VALUES: ThemeMode[] = ["dark", "light", "system"];
+const SQL_CATEGORY_EXPRESSION = `
+COALESCE(
+  ms.category,
+  CASE
+    WHEN LOWER(COALESCE(r.from_addr, '')) LIKE '%facebook%'
+      OR LOWER(COALESCE(r.from_addr, '')) LIKE '%twitter%'
+      OR LOWER(COALESCE(r.from_addr, '')) LIKE '%linkedin%'
+      OR LOWER(COALESCE(r.from_addr, '')) LIKE '%instagram%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%mentioned you%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%new follower%'
+    THEN 'social'
+    WHEN LOWER(COALESCE(r.from_addr, '')) LIKE '%forum%'
+      OR LOWER(COALESCE(r.from_addr, '')) LIKE '%community%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%forum%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%thread%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%discussion%'
+    THEN 'forums'
+    WHEN LOWER(COALESCE(r.subject, '')) LIKE '%invoice%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%receipt%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%order%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%shipment%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%statement%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%payment%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%security%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%alert%'
+    THEN 'updates'
+    WHEN LOWER(COALESCE(r.from_addr, '')) LIKE '%newsletter%'
+      OR LOWER(COALESCE(r.from_addr, '')) LIKE '%promo%'
+      OR LOWER(COALESCE(r.from_addr, '')) LIKE '%marketing%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%sale%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%discount%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%offer%'
+      OR LOWER(COALESCE(r.subject, '')) LIKE '%coupon%'
+    THEN 'promotions'
+    ELSE 'primary'
+  END
+)
+`;
 
 function applyHardeningHeaders(
   headers: HeadersInit,
@@ -487,6 +591,460 @@ function extractMailBodies(rawEmail: string): { textBody: string | null; htmlBod
   return { textBody, htmlBody };
 }
 
+function clampPage(value: string | null, fallback = 1): number {
+  const parsed = Number.parseInt(value ?? String(fallback), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return parsed;
+}
+
+function clampPageSize(value: string | null, fallback = DEFAULT_PAGE_SIZE): number {
+  const parsed = Number.parseInt(value ?? String(fallback), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(MAX_PAGE_SIZE, Math.max(1, parsed));
+}
+
+function sanitizeDensityMode(value: string | null | undefined): DensityMode {
+  if (value && DENSITY_VALUES.includes(value as DensityMode)) {
+    return value as DensityMode;
+  }
+  return "default";
+}
+
+function sanitizeReadingPaneMode(value: string | null | undefined): ReadingPaneMode {
+  if (value && READING_PANE_VALUES.includes(value as ReadingPaneMode)) {
+    return value as ReadingPaneMode;
+  }
+  return "right";
+}
+
+function sanitizeThemeMode(value: string | null | undefined): ThemeMode {
+  if (value && THEME_VALUES.includes(value as ThemeMode)) {
+    return value as ThemeMode;
+  }
+  return "dark";
+}
+
+function sanitizeCategory(value: string | null | undefined): MailCategory {
+  if (value && CATEGORY_VALUES.includes(value as MailCategory)) {
+    return value as MailCategory;
+  }
+  return "primary";
+}
+
+function parseLabels(value: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((entry) => String(entry).trim())
+      .filter(Boolean)
+      .slice(0, 50);
+  } catch {
+    return [];
+  }
+}
+
+function stringifyLabels(labels: string[]): string {
+  return JSON.stringify(Array.from(new Set(labels.map((label) => label.trim()).filter(Boolean))).slice(0, 50));
+}
+
+export function inferCategoryFromFields(fromAddr: string | null, subject: string | null): MailCategory {
+  const from = (fromAddr ?? "").toLowerCase();
+  const normalizedSubject = (subject ?? "").toLowerCase();
+
+  if (
+    from.includes("facebook")
+    || from.includes("twitter")
+    || from.includes("linkedin")
+    || from.includes("instagram")
+    || from.includes("tiktok")
+    || from.includes("discord")
+    || normalizedSubject.includes("new follower")
+    || normalizedSubject.includes("mentioned you")
+  ) {
+    return "social";
+  }
+
+  if (
+    from.includes("forum")
+    || from.includes("community")
+    || from.includes("groups")
+    || from.includes("discourse")
+    || normalizedSubject.includes("thread")
+    || normalizedSubject.includes("discussion")
+    || normalizedSubject.includes("forum")
+  ) {
+    return "forums";
+  }
+
+  if (
+    normalizedSubject.includes("invoice")
+    || normalizedSubject.includes("receipt")
+    || normalizedSubject.includes("order")
+    || normalizedSubject.includes("shipment")
+    || normalizedSubject.includes("statement")
+    || normalizedSubject.includes("payment")
+    || normalizedSubject.includes("alert")
+    || normalizedSubject.includes("security")
+  ) {
+    return "updates";
+  }
+
+  if (
+    from.includes("newsletter")
+    || from.includes("marketing")
+    || from.includes("promo")
+    || from.includes("deals")
+    || normalizedSubject.includes("sale")
+    || normalizedSubject.includes("discount")
+    || normalizedSubject.includes("offer")
+    || normalizedSubject.includes("coupon")
+  ) {
+    return "promotions";
+  }
+
+  return "primary";
+}
+
+function tokenizeSearchQuery(input: string): string[] {
+  const pattern = /([a-z]+:"[^"]+"|[a-z]+:[^\s]+|"[^"]+"|\S+)/gi;
+  const tokens: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(input)) !== null) {
+    const token = (match[1] ?? "").trim();
+    if (token) tokens.push(token);
+  }
+  return tokens;
+}
+
+function normalizeTokenValue(value: string): string {
+  return value.replace(/^"|"$/g, "").trim().toLowerCase();
+}
+
+export function parseSearchTokens(rawQuery: string): SearchTokens {
+  const parsed: SearchTokens = {
+    from: [],
+    to: [],
+    subject: [],
+    text: [],
+    categories: [],
+    inMailbox: [],
+    isFlags: [],
+    hasFlags: [],
+  };
+
+  const tokens = tokenizeSearchQuery(rawQuery);
+  for (const originalToken of tokens) {
+    const separator = originalToken.indexOf(":");
+    if (separator <= 0) {
+      parsed.text.push(normalizeTokenValue(originalToken));
+      continue;
+    }
+
+    const key = originalToken.slice(0, separator).toLowerCase().trim();
+    const value = normalizeTokenValue(originalToken.slice(separator + 1));
+    if (!value) {
+      continue;
+    }
+
+    if (key === "from") {
+      parsed.from.push(value);
+      continue;
+    }
+    if (key === "to") {
+      parsed.to.push(value);
+      continue;
+    }
+    if (key === "subject") {
+      parsed.subject.push(value);
+      continue;
+    }
+    if (key === "category") {
+      if (CATEGORY_VALUES.includes(value as MailCategory)) {
+        parsed.categories.push(value as MailCategory);
+      }
+      continue;
+    }
+    if (key === "in") {
+      if (["inbox", "archive", "trash", "anywhere", "snoozed"].includes(value)) {
+        parsed.inMailbox.push(value as SearchTokens["inMailbox"][number]);
+      }
+      continue;
+    }
+    if (key === "is") {
+      if (["read", "unread", "starred", "important", "muted"].includes(value)) {
+        parsed.isFlags.push(value as SearchTokens["isFlags"][number]);
+      }
+      continue;
+    }
+    if (key === "has") {
+      if (value === "attachment") {
+        parsed.hasFlags.push("attachment");
+      }
+      continue;
+    }
+    parsed.text.push(value);
+  }
+
+  return parsed;
+}
+
+function escapeSqlLike(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
+function normaliseSnippet(value: string | null): string {
+  if (!value) return "";
+  return value.replace(/\s+/g, " ").trim().slice(0, 180);
+}
+
+async function ensureGmailUiTables(db: D1Database): Promise<void> {
+  await db.prepare(
+    `
+      CREATE TABLE IF NOT EXISTS mail_states (
+        raw_id INTEGER PRIMARY KEY,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        is_starred INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        is_important INTEGER NOT NULL DEFAULT 0,
+        is_muted INTEGER NOT NULL DEFAULT 0,
+        category TEXT,
+        labels_json TEXT,
+        snoozed_until DATETIME,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (raw_id) REFERENCES raw_mails(id) ON DELETE CASCADE
+      )
+    `
+  ).run();
+
+  await db.prepare(
+    `
+      CREATE TABLE IF NOT EXISTS ui_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        density TEXT NOT NULL DEFAULT 'default',
+        reading_pane TEXT NOT NULL DEFAULT 'right',
+        theme TEXT NOT NULL DEFAULT 'dark',
+        shortcuts_enabled INTEGER NOT NULL DEFAULT 1,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+  ).run();
+
+  await db.prepare(
+    `
+      INSERT OR IGNORE INTO ui_settings (id, density, reading_pane, theme, shortcuts_enabled)
+      VALUES (1, 'default', 'right', 'dark', 1)
+    `
+  ).run();
+
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_mail_states_archived ON mail_states (is_archived, updated_at DESC)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_mail_states_deleted ON mail_states (is_deleted, updated_at DESC)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_mail_states_read ON mail_states (is_read, updated_at DESC)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_mail_states_starred ON mail_states (is_starred, updated_at DESC)").run();
+}
+
+async function getUiSettings(db: D1Database): Promise<{
+  density: DensityMode;
+  readingPane: ReadingPaneMode;
+  theme: ThemeMode;
+  shortcutsEnabled: boolean;
+}> {
+  const row = await db.prepare(
+    `
+      SELECT density, reading_pane, theme, shortcuts_enabled
+      FROM ui_settings
+      WHERE id = 1
+      LIMIT 1
+    `
+  ).first<UiSettingsRow>();
+
+  return {
+    density: sanitizeDensityMode(row?.density ?? null),
+    readingPane: sanitizeReadingPaneMode(row?.reading_pane ?? null),
+    theme: sanitizeThemeMode(row?.theme ?? null),
+    shortcutsEnabled: Number(row?.shortcuts_enabled ?? 1) === 1,
+  };
+}
+
+async function upsertUiSettings(
+  db: D1Database,
+  payload: Partial<{
+    density: DensityMode;
+    readingPane: ReadingPaneMode;
+    theme: ThemeMode;
+    shortcutsEnabled: boolean;
+  }>
+): Promise<void> {
+  const current = await getUiSettings(db);
+  const density = sanitizeDensityMode(payload.density ?? current.density);
+  const readingPane = sanitizeReadingPaneMode(payload.readingPane ?? current.readingPane);
+  const theme = sanitizeThemeMode(payload.theme ?? current.theme);
+  const shortcutsEnabled = payload.shortcutsEnabled ?? current.shortcutsEnabled;
+
+  await db.prepare(
+    `
+      INSERT INTO ui_settings (id, density, reading_pane, theme, shortcuts_enabled, updated_at)
+      VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET
+        density = excluded.density,
+        reading_pane = excluded.reading_pane,
+        theme = excluded.theme,
+        shortcuts_enabled = excluded.shortcuts_enabled,
+        updated_at = CURRENT_TIMESTAMP
+    `
+  )
+    .bind(density, readingPane, theme, shortcutsEnabled ? 1 : 0)
+    .run();
+}
+
+async function ensureMailStateRows(db: D1Database, rawIds: number[]): Promise<void> {
+  for (const rawId of rawIds) {
+    await db.prepare("INSERT OR IGNORE INTO mail_states (raw_id) VALUES (?)").bind(rawId).run();
+  }
+}
+
+function parseRawHeaders(rawEmail: string): Headers {
+  const headers = new Headers();
+  const headerBlock = rawEmail.split(/\r?\n\r?\n/, 1)[0] ?? "";
+  const lines = headerBlock.split(/\r?\n/);
+  let currentName: string | null = null;
+  for (const line of lines) {
+    if (/^[ \t]/.test(line) && currentName) {
+      const previous = headers.get(currentName) ?? "";
+      headers.set(currentName, `${previous} ${line.trim()}`.trim());
+      continue;
+    }
+    const separator = line.indexOf(":");
+    if (separator <= 0) {
+      currentName = null;
+      continue;
+    }
+    const key = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1).trim();
+    currentName = key;
+    headers.set(key, value);
+  }
+  return headers;
+}
+
+function computeCategory(row: ThreadQueryResultRow): MailCategory {
+  if (row.category && CATEGORY_VALUES.includes(row.category as MailCategory)) {
+    return row.category as MailCategory;
+  }
+
+  if (row.raw) {
+    const headers = parseRawHeaders(row.raw);
+    if (isPromotionalEmail(headers, row.raw)) {
+      return "promotions";
+    }
+  }
+
+  return inferCategoryFromFields(row.fromAddr, row.subject);
+}
+
+function buildThreadSnippet(row: ThreadQueryResultRow): string {
+  const { textBody } = extractMailBodies(String(row.raw ?? ""));
+  if (textBody) {
+    return normaliseSnippet(textBody);
+  }
+  return normaliseSnippet(row.topic ?? row.subject ?? null);
+}
+
+function resolveWhereClause(options: {
+  tokens: SearchTokens;
+  categoryFilter: string | null;
+  includeDeleted: boolean;
+  includeArchived: boolean;
+}): { clauses: string[]; bindings: Array<string | number> } {
+  const clauses: string[] = [];
+  const bindings: Array<string | number> = [];
+  const { tokens } = options;
+
+  if (!options.includeDeleted) {
+    clauses.push("COALESCE(ms.is_deleted, 0) = 0");
+  }
+  if (!options.includeArchived) {
+    clauses.push("COALESCE(ms.is_archived, 0) = 0");
+  }
+
+  if (options.categoryFilter && options.categoryFilter !== "all") {
+    clauses.push(`${SQL_CATEGORY_EXPRESSION} = ?`);
+    bindings.push(options.categoryFilter);
+  }
+
+  for (const fromToken of tokens.from) {
+    clauses.push("LOWER(COALESCE(r.from_addr, '')) LIKE ? ESCAPE '\\'");
+    bindings.push(`%${escapeSqlLike(fromToken)}%`);
+  }
+
+  for (const toToken of tokens.to) {
+    clauses.push("LOWER(COALESCE(r.to_addr, '')) LIKE ? ESCAPE '\\'");
+    bindings.push(`%${escapeSqlLike(toToken)}%`);
+  }
+
+  for (const subjectToken of tokens.subject) {
+    clauses.push("LOWER(COALESCE(r.subject, '')) LIKE ? ESCAPE '\\'");
+    bindings.push(`%${escapeSqlLike(subjectToken)}%`);
+  }
+
+  for (const isToken of tokens.isFlags) {
+    if (isToken === "read") clauses.push("COALESCE(ms.is_read, 0) = 1");
+    if (isToken === "unread") clauses.push("COALESCE(ms.is_read, 0) = 0");
+    if (isToken === "starred") clauses.push("COALESCE(ms.is_starred, 0) = 1");
+    if (isToken === "important") clauses.push("COALESCE(ms.is_important, 0) = 1");
+    if (isToken === "muted") clauses.push("COALESCE(ms.is_muted, 0) = 1");
+  }
+
+  for (const inToken of tokens.inMailbox) {
+    if (inToken === "inbox") {
+      clauses.push("COALESCE(ms.is_archived, 0) = 0");
+      clauses.push("COALESCE(ms.is_deleted, 0) = 0");
+    }
+    if (inToken === "archive") {
+      clauses.push("COALESCE(ms.is_archived, 0) = 1");
+      clauses.push("COALESCE(ms.is_deleted, 0) = 0");
+    }
+    if (inToken === "trash") {
+      clauses.push("COALESCE(ms.is_deleted, 0) = 1");
+    }
+    if (inToken === "snoozed") {
+      clauses.push("ms.snoozed_until IS NOT NULL");
+      clauses.push("ms.snoozed_until > CURRENT_TIMESTAMP");
+    }
+  }
+
+  for (const hasToken of tokens.hasFlags) {
+    if (hasToken === "attachment") {
+      clauses.push("LOWER(COALESCE(r.raw, '')) LIKE '%content-disposition: attachment%'");
+    }
+  }
+
+  for (const categoryToken of tokens.categories) {
+    clauses.push(`${SQL_CATEGORY_EXPRESSION} = ?`);
+    bindings.push(categoryToken);
+  }
+
+  for (const textToken of tokens.text) {
+    const likeTerm = `%${escapeSqlLike(textToken)}%`;
+    clauses.push(
+      "(LOWER(COALESCE(r.subject, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(r.from_addr, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(r.to_addr, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(c.topic, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(c.from_org, '')) LIKE ? ESCAPE '\\')"
+    );
+    bindings.push(likeTerm, likeTerm, likeTerm, likeTerm, likeTerm);
+  }
+
+  return { clauses, bindings };
+}
+
+async function parseJsonBody<T>(request: Request): Promise<T | null> {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 export default class extends WorkerEntrypoint<Env> {
   async fetch(request: Request): Promise<Response> {
     const env: Env = this.env;
@@ -501,9 +1059,388 @@ export default class extends WorkerEntrypoint<Env> {
 
     const url = new URL(request.url);
 
+    if (url.pathname.startsWith("/api/v2/")) {
+      await ensureGmailUiTables(env.DB);
+
+      if (url.pathname === "/api/v2/settings" && request.method === "GET") {
+        return jsonResponse(await getUiSettings(env.DB));
+      }
+
+      if (url.pathname === "/api/v2/settings" && request.method === "PUT") {
+        const payload = await parseJsonBody<{
+          density?: string;
+          readingPane?: string;
+          theme?: string;
+          shortcutsEnabled?: boolean;
+        }>(request);
+        if (!payload || typeof payload !== "object") {
+          return jsonResponse({ error: "Invalid settings payload" }, 400);
+        }
+
+        await upsertUiSettings(env.DB, {
+          density: sanitizeDensityMode(payload.density),
+          readingPane: sanitizeReadingPaneMode(payload.readingPane),
+          theme: sanitizeThemeMode(payload.theme),
+          shortcutsEnabled:
+            typeof payload.shortcutsEnabled === "boolean" ? payload.shortcutsEnabled : undefined,
+        });
+        return jsonResponse(await getUiSettings(env.DB));
+      }
+
+      if (url.pathname === "/api/v2/threads" && request.method === "GET") {
+        const page = clampPage(url.searchParams.get("page"), 1);
+        const pageSize = clampPageSize(url.searchParams.get("pageSize"), DEFAULT_PAGE_SIZE);
+        const offset = (page - 1) * pageSize;
+        const rawQuery = (url.searchParams.get("q") ?? "").trim();
+        const inbox = (url.searchParams.get("inbox") ?? "inbox").toLowerCase();
+        const categoryFilter = (url.searchParams.get("category") ?? "all").toLowerCase();
+        const tokens = parseSearchTokens(rawQuery);
+
+        const includeDeleted =
+          inbox === "trash"
+          || tokens.inMailbox.includes("trash")
+          || tokens.inMailbox.includes("anywhere");
+        const includeArchived =
+          inbox === "archive"
+          || tokens.inMailbox.includes("archive")
+          || tokens.inMailbox.includes("anywhere");
+        const where = resolveWhereClause({
+          tokens,
+          categoryFilter,
+          includeDeleted,
+          includeArchived,
+        });
+
+        if (inbox === "starred") {
+          where.clauses.push("COALESCE(ms.is_starred, 0) = 1");
+        } else if (inbox === "important") {
+          where.clauses.push("COALESCE(ms.is_important, 0) = 1");
+        } else if (inbox === "unread") {
+          where.clauses.push("COALESCE(ms.is_read, 0) = 0");
+        } else if (inbox === "trash") {
+          where.clauses.push("COALESCE(ms.is_deleted, 0) = 1");
+        } else if (inbox === "archive") {
+          where.clauses.push("COALESCE(ms.is_archived, 0) = 1");
+          where.clauses.push("COALESCE(ms.is_deleted, 0) = 0");
+        } else if (inbox === "snoozed") {
+          where.clauses.push("ms.snoozed_until IS NOT NULL");
+          where.clauses.push("ms.snoozed_until > CURRENT_TIMESTAMP");
+          where.clauses.push("COALESCE(ms.is_deleted, 0) = 0");
+        }
+
+        const whereClause = where.clauses.length > 0 ? `WHERE ${where.clauses.join(" AND ")}` : "";
+
+        const totalResult = await env.DB.prepare(
+          `
+            SELECT COUNT(*) AS total
+            FROM raw_mails r
+            LEFT JOIN code_mails c ON c.message_id = r.message_id
+            LEFT JOIN mail_states ms ON ms.raw_id = r.id
+            ${whereClause}
+          `
+        )
+          .bind(...where.bindings)
+          .first<{ total: number }>();
+
+        const threadResult = await env.DB.prepare(
+          `
+            SELECT
+              r.id AS rawId,
+              r.message_id AS messageId,
+              r.from_addr AS fromAddr,
+              r.to_addr AS toAddr,
+              r.subject AS subject,
+              r.raw AS raw,
+              r.created_at AS createdAt,
+              c.from_org AS fromOrg,
+              c.topic AS topic,
+              c.code AS code,
+              ms.is_read AS isRead,
+              ms.is_starred AS isStarred,
+              ms.is_archived AS isArchived,
+              ms.is_deleted AS isDeleted,
+              ms.is_important AS isImportant,
+              ms.is_muted AS isMuted,
+              ms.category AS category,
+              ms.labels_json AS labelsJson,
+              ms.snoozed_until AS snoozedUntil
+            FROM raw_mails r
+            LEFT JOIN code_mails c ON c.message_id = r.message_id
+            LEFT JOIN mail_states ms ON ms.raw_id = r.id
+            ${whereClause}
+            ORDER BY r.created_at DESC
+            LIMIT ? OFFSET ?
+          `
+        )
+          .bind(...where.bindings, pageSize, offset)
+          .all<ThreadQueryResultRow>();
+
+        const rows = threadResult.results ?? [];
+        await ensureMailStateRows(env.DB, rows.map((row) => row.rawId));
+
+        const items = [];
+        for (const row of rows) {
+          const category = computeCategory(row);
+          if (!row.category) {
+            await env.DB.prepare(
+              `
+                UPDATE mail_states
+                SET category = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE raw_id = ?
+              `
+            )
+              .bind(category, row.rawId)
+              .run();
+          }
+
+          items.push({
+            id: row.rawId,
+            threadId: `thread-${row.rawId}`,
+            messageId: row.messageId,
+            fromAddr: row.fromAddr,
+            fromOrg: row.fromOrg,
+            toAddr: row.toAddr,
+            subject: row.subject,
+            topic: row.topic,
+            code: row.code,
+            snippet: buildThreadSnippet(row),
+            createdAt: row.createdAt,
+            isRead: Number(row.isRead ?? 0) === 1,
+            isStarred: Number(row.isStarred ?? 0) === 1,
+            isArchived: Number(row.isArchived ?? 0) === 1,
+            isDeleted: Number(row.isDeleted ?? 0) === 1,
+            isImportant: Number(row.isImportant ?? 0) === 1,
+            isMuted: Number(row.isMuted ?? 0) === 1,
+            category,
+            labels: parseLabels(row.labelsJson),
+            hasCode: Boolean(row.code),
+            hasHtml: Boolean(extractMailBodies(String(row.raw ?? "")).htmlBody),
+            snoozedUntil: row.snoozedUntil,
+          });
+        }
+
+        return jsonResponse({
+          page,
+          pageSize,
+          total: Number(totalResult?.total ?? 0),
+          items,
+        });
+      }
+
+      const threadMatch = url.pathname.match(/^\/api\/v2\/threads\/(\d+)$/);
+      if (threadMatch && request.method === "GET") {
+        const rawId = Number.parseInt(threadMatch[1], 10);
+        if (!Number.isFinite(rawId) || rawId < 1) {
+          return jsonResponse({ error: "Invalid thread id" }, 400);
+        }
+
+        const row = await env.DB.prepare(
+          `
+            SELECT
+              r.id AS rawId,
+              r.message_id AS messageId,
+              r.from_addr AS fromAddr,
+              r.to_addr AS toAddr,
+              r.subject AS subject,
+              r.raw AS raw,
+              r.created_at AS createdAt,
+              c.from_org AS fromOrg,
+              c.topic AS topic,
+              c.code AS code,
+              ms.is_read AS isRead,
+              ms.is_starred AS isStarred,
+              ms.is_archived AS isArchived,
+              ms.is_deleted AS isDeleted,
+              ms.is_important AS isImportant,
+              ms.is_muted AS isMuted,
+              ms.category AS category,
+              ms.labels_json AS labelsJson,
+              ms.snoozed_until AS snoozedUntil
+            FROM raw_mails r
+            LEFT JOIN code_mails c ON c.message_id = r.message_id
+            LEFT JOIN mail_states ms ON ms.raw_id = r.id
+            WHERE r.id = ?
+            LIMIT 1
+          `
+        )
+          .bind(rawId)
+          .first<ThreadQueryResultRow>();
+
+        if (!row) {
+          return jsonResponse({ error: "Thread not found" }, 404);
+        }
+
+        await ensureMailStateRows(env.DB, [rawId]);
+        const category = computeCategory(row);
+        if (!row.category) {
+          await env.DB.prepare(
+            `
+              UPDATE mail_states
+              SET category = ?, updated_at = CURRENT_TIMESTAMP
+              WHERE raw_id = ?
+            `
+          )
+            .bind(category, rawId)
+            .run();
+        }
+
+        const { textBody, htmlBody } = extractMailBodies(String(row.raw ?? ""));
+        return jsonResponse({
+          id: row.rawId,
+          threadId: `thread-${row.rawId}`,
+          messageId: row.messageId,
+          fromAddr: row.fromAddr,
+          fromOrg: row.fromOrg,
+          toAddr: row.toAddr,
+          subject: row.subject,
+          topic: row.topic,
+          code: row.code,
+          createdAt: row.createdAt,
+          raw: row.raw,
+          textBody,
+          htmlBody,
+          category,
+          labels: parseLabels(row.labelsJson),
+          isRead: Number(row.isRead ?? 0) === 1,
+          isStarred: Number(row.isStarred ?? 0) === 1,
+          isArchived: Number(row.isArchived ?? 0) === 1,
+          isDeleted: Number(row.isDeleted ?? 0) === 1,
+          isImportant: Number(row.isImportant ?? 0) === 1,
+          isMuted: Number(row.isMuted ?? 0) === 1,
+          snoozedUntil: row.snoozedUntil,
+        });
+      }
+
+      if (url.pathname === "/api/v2/threads/actions" && request.method === "POST") {
+        const payload = await parseJsonBody<{
+          action: ThreadAction;
+          ids: number[];
+          until?: string;
+          label?: string;
+        }>(request);
+
+        if (!payload || typeof payload !== "object") {
+          return jsonResponse({ error: "Invalid payload" }, 400);
+        }
+
+        const allowedActions: ThreadAction[] = [
+          "read",
+          "unread",
+          "star",
+          "unstar",
+          "archive",
+          "unarchive",
+          "delete",
+          "restore",
+          "important",
+          "not-important",
+          "snooze",
+          "label-add",
+          "label-remove",
+        ];
+
+        if (!allowedActions.includes(payload.action)) {
+          return jsonResponse({ error: "Invalid action" }, 400);
+        }
+
+        const ids = Array.isArray(payload.ids)
+          ? payload.ids
+            .map((value) => Number(value))
+            .filter((value) => Number.isInteger(value) && value > 0)
+            .slice(0, 200)
+          : [];
+        if (ids.length === 0) {
+          return jsonResponse({ error: "No valid ids provided" }, 400);
+        }
+
+        await ensureMailStateRows(env.DB, ids);
+        const placeholders = ids.map(() => "?").join(", ");
+
+        if (payload.action === "read" || payload.action === "unread") {
+          await env.DB.prepare(
+            `UPDATE mail_states SET is_read = ?, updated_at = CURRENT_TIMESTAMP WHERE raw_id IN (${placeholders})`
+          )
+            .bind(payload.action === "read" ? 1 : 0, ...ids)
+            .run();
+        } else if (payload.action === "star" || payload.action === "unstar") {
+          await env.DB.prepare(
+            `UPDATE mail_states SET is_starred = ?, updated_at = CURRENT_TIMESTAMP WHERE raw_id IN (${placeholders})`
+          )
+            .bind(payload.action === "star" ? 1 : 0, ...ids)
+            .run();
+        } else if (payload.action === "archive" || payload.action === "unarchive") {
+          await env.DB.prepare(
+            `UPDATE mail_states SET is_archived = ?, updated_at = CURRENT_TIMESTAMP WHERE raw_id IN (${placeholders})`
+          )
+            .bind(payload.action === "archive" ? 1 : 0, ...ids)
+            .run();
+        } else if (payload.action === "delete") {
+          await env.DB.prepare(
+            `UPDATE mail_states SET is_deleted = 1, is_archived = 1, updated_at = CURRENT_TIMESTAMP WHERE raw_id IN (${placeholders})`
+          )
+            .bind(...ids)
+            .run();
+        } else if (payload.action === "restore") {
+          await env.DB.prepare(
+            `UPDATE mail_states SET is_deleted = 0, is_archived = 0, snoozed_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE raw_id IN (${placeholders})`
+          )
+            .bind(...ids)
+            .run();
+        } else if (payload.action === "important" || payload.action === "not-important") {
+          await env.DB.prepare(
+            `UPDATE mail_states SET is_important = ?, updated_at = CURRENT_TIMESTAMP WHERE raw_id IN (${placeholders})`
+          )
+            .bind(payload.action === "important" ? 1 : 0, ...ids)
+            .run();
+        } else if (payload.action === "snooze") {
+          const untilDate = payload.until ? new Date(payload.until) : null;
+          if (!untilDate || Number.isNaN(untilDate.getTime())) {
+            return jsonResponse({ error: "Invalid snooze timestamp" }, 400);
+          }
+          await env.DB.prepare(
+            `UPDATE mail_states SET snoozed_until = ?, is_archived = 0, is_deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE raw_id IN (${placeholders})`
+          )
+            .bind(untilDate.toISOString(), ...ids)
+            .run();
+        } else if (payload.action === "label-add" || payload.action === "label-remove") {
+          const normalizedLabel = String(payload.label ?? "").trim().toLowerCase().slice(0, 64);
+          if (!normalizedLabel) {
+            return jsonResponse({ error: "Label is required for label actions" }, 400);
+          }
+
+          const currentRows = await env.DB.prepare(
+            `SELECT raw_id, labels_json FROM mail_states WHERE raw_id IN (${placeholders})`
+          )
+            .bind(...ids)
+            .all<{ raw_id: number; labels_json: string | null }>();
+
+          for (const row of currentRows.results ?? []) {
+            const labels = parseLabels(row.labels_json);
+            const next =
+              payload.action === "label-add"
+                ? Array.from(new Set([...labels, normalizedLabel]))
+                : labels.filter((label) => label !== normalizedLabel);
+            await env.DB.prepare(
+              `
+                UPDATE mail_states
+                SET labels_json = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE raw_id = ?
+              `
+            )
+              .bind(stringifyLabels(next), row.raw_id)
+              .run();
+          }
+        }
+
+        return jsonResponse({ success: true, updated: ids.length });
+      }
+
+      return jsonResponse({ error: "Not found" }, 404);
+    }
+
     if (url.pathname === "/api/mails" && request.method === "GET") {
-      const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
-      const pageSize = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get("pageSize") ?? "20", 10) || 20));
+      const page = clampPage(url.searchParams.get("page"), 1);
+      const pageSize = clampPageSize(url.searchParams.get("pageSize"), DEFAULT_PAGE_SIZE);
       const offset = (page - 1) * pageSize;
       const { results } = await env.DB.prepare(
         `
@@ -653,6 +1590,7 @@ export default class extends WorkerEntrypoint<Env> {
   async email(message: ForwardableEmailMessage): Promise<void> {
     const env: Env = this.env;
     const useBark = env.UseBark.toLowerCase() === "true";
+    await ensureGmailUiTables(env.DB);
 
     const primary: ProviderConfig = {
       baseUrl: env.AI_BASE_URL,
@@ -680,20 +1618,36 @@ export default class extends WorkerEntrypoint<Env> {
     const rawSubject = message.headers.get("Subject");
     const { textBody } = extractMailBodies(rawEmail);
 
+    const promotionalEmail = isPromotionalEmail(message.headers, rawEmail);
+
     // Persist raw mail payload for auditing // 将原始邮件持久化以便审计
-    const { success } = await env.DB.prepare(
+    const insertRawResult = await env.DB.prepare(
       "INSERT INTO raw_mails (from_addr, to_addr, subject, raw, message_id) VALUES (?, ?, ?, ?, ?)"
     )
       .bind(message.from, message.to, rawSubject, rawEmail, messageId)
       .run();
+    const success = insertRawResult.success;
+    const rawRowId = Number((insertRawResult.meta as { last_row_id?: number } | undefined)?.last_row_id ?? 0);
 
     if (!success) {
       message.setReject("Failed to save message payload");
       console.log(`Failed to save raw mail payload for messageId=${messageId ?? "unknown"}`);
+    } else if (rawRowId > 0) {
+      const initialCategory = promotionalEmail
+        ? "promotions"
+        : inferCategoryFromFields(message.from, rawSubject);
+      await env.DB.prepare(
+        `
+          INSERT OR IGNORE INTO mail_states (raw_id, category, is_read, is_starred, is_archived, is_deleted, is_important, is_muted, labels_json)
+          VALUES (?, ?, 0, 0, 0, 0, 0, 0, '[]')
+        `
+      )
+        .bind(rawRowId, initialCategory)
+        .run();
     }
 
     // Skip promotional/bulk emails before hitting the LLM
-    if (isPromotionalEmail(message.headers, rawEmail)) {
+    if (promotionalEmail) {
       console.log(`Skipping promotional email messageId=${messageId ?? "unknown"}`);
       return;
     }

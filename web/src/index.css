@@ -1,31 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-	--background: 0 0% 4%;
-	--foreground: 0 0% 92%;
-	--card: 0 0% 8%;
-	--card-foreground: 0 0% 92%;
-	--popover: 0 0% 8%;
-	--popover-foreground: 0 0% 92%;
-	--primary: 164 67% 63%;
-	--primary-foreground: 0 0% 5%;
-	--secondary: 0 0% 13%;
-	--secondary-foreground: 0 0% 92%;
-	--muted: 0 0% 13%;
-	--muted-foreground: 0 0% 68%;
-	--accent: 0 0% 13%;
-	--accent-foreground: 0 0% 92%;
-	--destructive: 0 73% 53%;
-	--destructive-foreground: 0 0% 98%;
-	--border: 0 0% 20%;
-	--input: 0 0% 20%;
-	--ring: 164 67% 63%;
-	--radius: 0.8rem;
-	color-scheme: dark;
+	--radius: 0.95rem;
 }
 
 * {
@@ -40,7 +20,103 @@ body,
 
 body {
 	margin: 0;
-	font-family: 'Manrope', sans-serif;
+	font-family: 'Roboto', ui-sans-serif, system-ui;
+	background: #0f1217;
+	color: #e8eaed;
+}
+
+.theme-dark {
+	--background: 220 16% 10%;
+	--foreground: 210 9% 91%;
+	--card: 219 16% 14%;
+	--card-foreground: 210 9% 91%;
+	--popover: 219 16% 14%;
+	--popover-foreground: 210 9% 91%;
+	--primary: 217 89% 68%;
+	--primary-foreground: 222 47% 11%;
+	--secondary: 220 13% 18%;
+	--secondary-foreground: 210 20% 96%;
+	--muted: 220 13% 18%;
+	--muted-foreground: 215 12% 67%;
+	--accent: 220 13% 22%;
+	--accent-foreground: 210 20% 96%;
+	--destructive: 0 63% 53%;
+	--destructive-foreground: 0 0% 98%;
+	--border: 217 10% 24%;
+	--input: 217 10% 26%;
+	--ring: 217 89% 68%;
+	color-scheme: dark;
+}
+
+.theme-light {
+	--background: 210 20% 98%;
+	--foreground: 220 13% 20%;
+	--card: 0 0% 100%;
+	--card-foreground: 220 13% 20%;
+	--popover: 0 0% 100%;
+	--popover-foreground: 220 13% 20%;
+	--primary: 217 89% 46%;
+	--primary-foreground: 0 0% 100%;
+	--secondary: 220 20% 93%;
+	--secondary-foreground: 220 13% 20%;
+	--muted: 220 20% 93%;
+	--muted-foreground: 220 10% 46%;
+	--accent: 220 20% 88%;
+	--accent-foreground: 220 13% 20%;
+	--destructive: 0 72% 49%;
+	--destructive-foreground: 0 0% 98%;
+	--border: 220 14% 84%;
+	--input: 220 14% 84%;
+	--ring: 217 89% 46%;
+	color-scheme: light;
+}
+
+.gmail-root {
 	background: hsl(var(--background));
 	color: hsl(var(--foreground));
+}
+
+.gmail-topbar {
+	background: linear-gradient(90deg, hsl(var(--background)) 0%, color-mix(in oklab, hsl(var(--background)) 88%, hsl(var(--primary)) 12%) 100%);
+	border-color: hsl(var(--border));
+	backdrop-filter: blur(8px);
+}
+
+.gmail-search {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	border-radius: 999px;
+	padding: 0.4rem 0.75rem;
+	background: color-mix(in oklab, hsl(var(--muted)) 88%, hsl(var(--primary)) 12%);
+	border: 1px solid hsl(var(--border));
+}
+
+.gmail-sidebar {
+	background: color-mix(in oklab, hsl(var(--background)) 94%, hsl(var(--primary)) 6%);
+	border-color: hsl(var(--border));
+}
+
+.gmail-thread-row {
+	animation: thread-in 170ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes thread-in {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.gmail-thread-row {
+		animation: none;
+	}
+	* {
+		transition: none !important;
+	}
 }
