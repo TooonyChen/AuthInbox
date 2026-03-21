@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import {
 	Archive,
@@ -85,6 +85,13 @@ interface UiSettings {
 	shortcutsEnabled: boolean;
 }
 
+interface SessionPayload {
+	authenticated: boolean;
+	username?: string;
+	method?: 'basic' | 'session';
+	csrfToken?: string | null;
+}
+
 const PAGE_SIZE = 30;
 const DEFAULT_SETTINGS: UiSettings = {
 	density: 'default',
@@ -111,6 +118,15 @@ const INBOX_ITEMS: Array<{ id: InboxView; label: string }> = [
 	{ id: 'snoozed', label: 'Snoozed' },
 	{ id: 'trash', label: 'Trash' },
 ];
+
+class HttpError extends Error {
+	status: number;
+
+	constructor(status: number, message: string) {
+		super(message);
+		this.status = status;
+	}
+}
 
 function formatDate(value: string | null): string {
 	if (!value) return '-';
@@ -181,23 +197,33 @@ async function fetchJson<T>(url: string): Promise<T> {
 	const response = await fetch(url, { headers: { Accept: 'application/json' } });
 	if (!response.ok) {
 		const text = await response.text();
-		throw new Error(text || `Request failed (${response.status})`);
+		throw new HttpError(response.status, text || `Request failed (${response.status})`);
 	}
 	return (await response.json()) as T;
 }
 
-async function sendJson<TResponse>(url: string, body: unknown, method: 'POST' | 'PUT' = 'POST'): Promise<TResponse> {
+async function sendJson<TResponse>(
+	url: string,
+	body: unknown,
+	method: 'POST' | 'PUT' = 'POST',
+	csrfToken?: string
+): Promise<TResponse> {
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		Accept: 'application/json',
+	};
+	if (csrfToken) {
+		headers['x-csrf-token'] = csrfToken;
+	}
+
 	const response = await fetch(url, {
 		method,
-		headers: {
-			'Content-Type': 'application/json',
-			Accept: 'application/json',
-		},
+		headers,
 		body: JSON.stringify(body),
 	});
 	if (!response.ok) {
 		const text = await response.text();
-		throw new Error(text || `Request failed (${response.status})`);
+		throw new HttpError(response.status, text || `Request failed (${response.status})`);
 	}
 	return (await response.json()) as TResponse;
 }
@@ -220,6 +246,14 @@ function App(): JSX.Element {
 	const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [isAuthLoading, setIsAuthLoading] = useState(true);
+	const [isAuthenticated, setIsAuthenticated] = useState(false);
+	const [authUser, setAuthUser] = useState<string | null>(null);
+	const [csrfToken, setCsrfToken] = useState('');
+	const [loginUsername, setLoginUsername] = useState('admin');
+	const [loginPassword, setLoginPassword] = useState('');
+	const [loginError, setLoginError] = useState<string | null>(null);
+	const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
 
 	const [inbox, setInbox] = useState<InboxView>('inbox');
 	const [category, setCategory] = useState<CategoryView>('all');
@@ -244,19 +278,55 @@ function App(): JSX.Element {
 	const searchInputRef = useRef<HTMLInputElement | null>(null);
 	const comboRef = useRef<string | null>(null);
 	const comboTimeoutRef = useRef<number | null>(null);
+	const currentPath = typeof window === 'undefined' ? '/' : window.location.pathname;
+	const isLoginRoute = currentPath === '/login';
 
 	const effectiveTheme: 'dark' | 'light' =
 		settings.theme === 'system' ? (systemThemeDark ? 'dark' : 'light') : settings.theme;
 	const totalPages = Math.max(1, Math.ceil(list.total / list.pageSize));
 
+	const handleUnauthorized = useCallback((error: unknown): boolean => {
+		if (error instanceof HttpError && error.status === 401) {
+			setIsAuthenticated(false);
+			setAuthUser(null);
+			setCsrfToken('');
+			if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+				window.location.replace('/login');
+			}
+			return true;
+		}
+		return false;
+	}, []);
+
+	const loadSession = useCallback(async (): Promise<void> => {
+		try {
+			const payload = await fetchJson<SessionPayload>('/auth/session');
+			setIsAuthenticated(Boolean(payload.authenticated));
+			setAuthUser(payload.username ?? null);
+			setCsrfToken(payload.csrfToken ?? '');
+		} catch (error) {
+			if (error instanceof HttpError && error.status === 401) {
+				setIsAuthenticated(false);
+				setAuthUser(null);
+				setCsrfToken('');
+			} else {
+				console.error(error);
+			}
+		} finally {
+			setIsAuthLoading(false);
+		}
+	}, []);
+
 	const loadSettings = useCallback(async (): Promise<void> => {
+		if (!isAuthenticated) return;
 		try {
 			const payload = await fetchJson<UiSettings>('/api/v2/settings');
 			setSettings(payload);
 		} catch (error) {
+			if (handleUnauthorized(error)) return;
 			console.error(error);
 		}
-	}, []);
+	}, [handleUnauthorized, isAuthenticated]);
 
 	const updateSettings = useCallback(
 		async (patch: Partial<UiSettings>): Promise<void> => {
@@ -264,17 +334,19 @@ function App(): JSX.Element {
 			const next = { ...settings, ...patch };
 			setSettings(next);
 			try {
-				const payload = await sendJson<UiSettings>('/api/v2/settings', next, 'PUT');
+				const payload = await sendJson<UiSettings>('/api/v2/settings', next, 'PUT', csrfToken);
 				setSettings(payload);
 			} catch (error) {
+				if (handleUnauthorized(error)) return;
 				setSettings(previous);
 				toast.error(error instanceof Error ? error.message : 'Unable to update settings');
 			}
 		},
-		[settings]
+		[csrfToken, handleUnauthorized, settings]
 	);
 
 	const loadList = useCallback(async (): Promise<void> => {
+		if (!isAuthenticated) return;
 		setIsListLoading(true);
 		setListError(null);
 		try {
@@ -293,13 +365,15 @@ function App(): JSX.Element {
 				return payload.items[0]?.id ?? null;
 			});
 		} catch (error) {
+			if (handleUnauthorized(error)) return;
 			setListError(error instanceof Error ? error.message : 'Unable to load threads');
 		} finally {
 			setIsListLoading(false);
 		}
-	}, [category, inbox, page, query]);
+	}, [category, handleUnauthorized, inbox, isAuthenticated, page, query]);
 
 	const loadDetail = useCallback(async (id: number): Promise<void> => {
+		if (!isAuthenticated) return;
 		setIsDetailLoading(true);
 		setDetailError(null);
 		setHideRemoteImages(true);
@@ -307,11 +381,12 @@ function App(): JSX.Element {
 			const payload = await fetchJson<MailThreadDetail>(`/api/v2/threads/${id}`);
 			setDetail(payload);
 		} catch (error) {
+			if (handleUnauthorized(error)) return;
 			setDetailError(error instanceof Error ? error.message : 'Unable to load thread detail');
 		} finally {
 			setIsDetailLoading(false);
 		}
-	}, []);
+	}, [handleUnauthorized, isAuthenticated]);
 
 	const selectionIds = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
 
@@ -327,18 +402,19 @@ function App(): JSX.Element {
 					action,
 					ids: selectionIds,
 					...extra,
-				});
+				}, 'POST', csrfToken);
 				await loadList();
 				if (selectedId && selectionIds.includes(selectedId)) {
 					await loadDetail(selectedId);
 				}
 			} catch (error) {
+				if (handleUnauthorized(error)) return;
 				toast.error(error instanceof Error ? error.message : 'Action failed');
 			} finally {
 				setIsActionLoading(false);
 			}
 		},
-		[loadDetail, loadList, selectedId, selectionIds]
+		[csrfToken, handleUnauthorized, loadDetail, loadList, selectedId, selectionIds]
 	);
 
 	useEffect(() => {
@@ -350,22 +426,47 @@ function App(): JSX.Element {
 	}, []);
 
 	useEffect(() => {
+		void loadSession();
+	}, [loadSession]);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		if (!isAuthLoading && !isAuthenticated && !isLoginRoute) {
+			window.location.replace('/login');
+		}
+	}, [isAuthLoading, isAuthenticated, isLoginRoute]);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		if (!isAuthLoading && isAuthenticated && isLoginRoute) {
+			window.location.replace('/');
+		}
+	}, [isAuthLoading, isAuthenticated, isLoginRoute]);
+
+	useEffect(() => {
+		if (!isAuthenticated) return;
 		void loadSettings();
-	}, [loadSettings]);
+	}, [isAuthenticated, loadSettings]);
 
 	useEffect(() => {
+		if (!isAuthenticated) return;
 		void loadList();
-	}, [loadList]);
+	}, [isAuthenticated, loadList]);
 
 	useEffect(() => {
+		if (!isAuthenticated) {
+			setDetail(null);
+			return;
+		}
 		if (!selectedId) {
 			setDetail(null);
 			return;
 		}
 		void loadDetail(selectedId);
-	}, [loadDetail, selectedId]);
+	}, [isAuthenticated, loadDetail, selectedId]);
 
 	useEffect(() => {
+		if (!isAuthenticated) return undefined;
 		if (!settings.shortcutsEnabled) return undefined;
 
 		const clearCombo = (): void => {
@@ -496,7 +597,7 @@ function App(): JSX.Element {
 			window.removeEventListener('keydown', onKeyDown);
 			clearCombo();
 		};
-	}, [list.items, runAction, selectedId, settings.shortcutsEnabled]);
+	}, [isAuthenticated, list.items, runAction, selectedId, settings.shortcutsEnabled]);
 
 	const previewHtml = useMemo(() => {
 		if (!detail?.htmlBody) return null;
@@ -522,7 +623,121 @@ function App(): JSX.Element {
 		applySearch(next);
 	};
 
+	const submitLogin = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+		event.preventDefault();
+		setIsLoginSubmitting(true);
+		setLoginError(null);
+		try {
+			const payload = await sendJson<SessionPayload>('/auth/login', {
+				username: loginUsername.trim(),
+				password: loginPassword,
+			});
+			setIsAuthenticated(Boolean(payload.authenticated));
+			setAuthUser(payload.username ?? loginUsername.trim());
+			setCsrfToken(payload.csrfToken ?? '');
+			setLoginPassword('');
+			if (typeof window !== 'undefined') {
+				window.location.replace('/');
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Unable to sign in';
+			setLoginError(message);
+		} finally {
+			setIsLoginSubmitting(false);
+		}
+	};
+
+	const logout = async (): Promise<void> => {
+		try {
+			await sendJson('/auth/logout', {}, 'POST', csrfToken);
+		} catch (error) {
+			console.error(error);
+		} finally {
+			setIsAuthenticated(false);
+			setAuthUser(null);
+			setCsrfToken('');
+			if (typeof window !== 'undefined') {
+				window.location.replace('/login');
+			}
+		}
+	};
+
 	const showDetailPane = settings.readingPane !== 'none' || singlePaneOpen;
+
+	if (isAuthLoading) {
+		return (
+			<div className={cn('gmail-root min-h-screen', effectiveTheme === 'light' ? 'theme-light' : 'theme-dark')}>
+				<div className="flex min-h-screen items-center justify-center">
+					<div className="auth-card animate-pulse rounded-3xl border p-8 text-center">
+						<div className="mb-2 text-sm text-muted-foreground">AuthInbox</div>
+						<div className="text-lg font-semibold">Validating session...</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (!isAuthenticated) {
+		return (
+			<div className={cn('gmail-root login-page min-h-screen', effectiveTheme === 'light' ? 'theme-light' : 'theme-dark')}>
+				<Toaster theme={effectiveTheme === 'light' ? 'light' : 'dark'} position="bottom-right" closeButton />
+				<div className="login-bg-orb login-bg-orb-left" />
+				<div className="login-bg-orb login-bg-orb-right" />
+				<div className="flex min-h-screen items-center justify-center p-4">
+					<form onSubmit={submitLogin} className="auth-card auth-card-in w-full max-w-md rounded-3xl border p-7 shadow-2xl">
+						<div className="mb-6">
+							<div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+								<ShieldCheck className="h-4 w-4 text-primary" />
+								Secure Access
+							</div>
+							<h1 className="font-sans text-3xl font-bold">Sign in</h1>
+							<p className="mt-2 text-sm text-muted-foreground">Use your AuthInbox admin credentials.</p>
+						</div>
+
+						<div className="space-y-4">
+							<label className="block text-sm">
+								<span className="mb-1 block text-muted-foreground">Username</span>
+								<input
+									type="text"
+									autoComplete="username"
+									value={loginUsername}
+									onChange={(event) => setLoginUsername(event.target.value)}
+									required
+									className="w-full rounded-xl border bg-background px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+								/>
+							</label>
+							<label className="block text-sm">
+								<span className="mb-1 block text-muted-foreground">Password</span>
+								<input
+									type="password"
+									autoComplete="current-password"
+									value={loginPassword}
+									onChange={(event) => setLoginPassword(event.target.value)}
+									required
+									className="w-full rounded-xl border bg-background px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+								/>
+							</label>
+							{loginError ? (
+								<div className="auth-error-shake rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+									{loginError}
+								</div>
+							) : null}
+							<Button type="submit" className="h-10 w-full" disabled={isLoginSubmitting}>
+								{isLoginSubmitting ? (
+									<span className="inline-flex items-center gap-2">
+										<RefreshCw className="h-4 w-4 animate-spin" />
+										Signing in...
+									</span>
+								) : (
+									'Sign in'
+								)}
+							</Button>
+						</div>
+					</form>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className={cn('gmail-root min-h-screen', effectiveTheme === 'light' ? 'theme-light' : 'theme-dark')}>
@@ -568,11 +783,15 @@ function App(): JSX.Element {
 				</form>
 
 				<div className="flex items-center gap-1">
+					<span className="hidden text-xs text-muted-foreground md:inline">{authUser ? `@${authUser}` : ''}</span>
 					<Button variant="ghost" size="icon" onClick={() => void loadList()} disabled={isListLoading}>
 						<RefreshCw className={cn('h-4 w-4', isListLoading && 'animate-spin')} />
 					</Button>
 					<Button variant="ghost" size="icon" onClick={() => setShowSettingsPanel((open) => !open)}>
 						<Settings className="h-4 w-4" />
+					</Button>
+					<Button variant="ghost" size="sm" onClick={() => void logout()} className="ml-1">
+						Log out
 					</Button>
 				</div>
 			</header>
@@ -706,7 +925,7 @@ function App(): JSX.Element {
 																void sendJson('/api/v2/threads/actions', {
 																	action: item.isStarred ? 'unstar' : 'star',
 																	ids: [item.id],
-																}).then(() => loadList());
+																}, 'POST', csrfToken).then(() => loadList());
 															}}
 															className="mt-0.5 rounded p-1 text-muted-foreground hover:bg-secondary"
 														>

@@ -45,6 +45,11 @@ FrontEndAdminID = "admin"
 # your login **Please change it to your own login**
 # 你的登录账号 **请更改为你自己的登录账号**
 
+AUTH_MODE = "session"
+# AUTH_MODE: String
+# one of: basic | session | both
+# 认证模式：basic（仅基础认证）| session（仅登录页会话）| both（两者都可）
+
 
 # --- Primary AI provider ---
 AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
@@ -74,6 +79,7 @@ AI_MODEL = "gemini-2.0-flash"
 
 # Secrets (set with `wrangler secret put <KEY>`)
 #   FrontEndAdminPassword  (required)
+#   SESSION_SIGNING_KEY    (required for AUTH_MODE=session or AUTH_MODE=both)
 #   AI_API_KEY             (required)
 #   barkTokens             (required only when UseBark=true)
 #   AI_FALLBACK_API_KEY    (required only when fallback enabled)

@@ -2,7 +2,7 @@
 
 [English](https://github.com/TooonyChen/AuthInbox/blob/main/README.md) | [简体中文](https://github.com/TooonyChen/AuthInbox/blob/main/README_CN.md)
 
-**Auth Inbox** is an open-source, self-hosted email verification code platform built on [Cloudflare](https://cloudflare.com/)'s free serverless services. It automatically processes incoming emails, filters out promotional mail before hitting the AI, extracts verification codes or links, and stores them in a database. A modern React dashboard lets administrators review extracted codes, inspect raw emails, and render HTML email previews — all protected by Basic Auth.
+**Auth Inbox** is an open-source, self-hosted email verification code platform built on [Cloudflare](https://cloudflare.com/)'s free serverless services. It automatically processes incoming emails, filters out promotional mail before hitting the AI, extracts verification codes or links, and stores them in a database. A modern React dashboard lets administrators review extracted codes, inspect raw emails, and render HTML email previews — protected with Basic Auth, session login, or both.
 
 Don't want ads and spam in your main inbox? Need a bunch of alternative addresses for signups? Try this **secure**, **serverless**, **lightweight** service!
 
@@ -116,6 +116,7 @@ flowchart LR
    corepack pnpm exec wrangler d1 create inbox-d1
    corepack pnpm exec wrangler d1 execute inbox-d1 --remote --file=./db/schema.sql
    corepack pnpm exec wrangler d1 execute inbox-d1 --remote --file=./db/migrations/001_gmail_ui.sql
+   corepack pnpm exec wrangler d1 execute inbox-d1 --remote --file=./db/migrations/002_auth_sessions.sql
    ```
 
    Copy the `database_id` from the output.
@@ -131,6 +132,7 @@ flowchart LR
    ```toml
     [vars]
     FrontEndAdminID = "your-username"
+    AUTH_MODE       = "session" # basic | session | both
     UseBark         = "false"
 
     # AI provider — choose any compatible service
@@ -148,12 +150,18 @@ flowchart LR
 
    ```bash
    corepack pnpm exec wrangler secret put FrontEndAdminPassword
+   corepack pnpm exec wrangler secret put SESSION_SIGNING_KEY
    corepack pnpm exec wrangler secret put AI_API_KEY
 
    # Optional (fallback provider and Bark)
    corepack pnpm exec wrangler secret put AI_FALLBACK_API_KEY
    corepack pnpm exec wrangler secret put barkTokens
    ```
+
+   Auth mode options:
+   - `AUTH_MODE = "session"`: modern in-app `/login` form (recommended)
+   - `AUTH_MODE = "basic"`: browser-native Basic Auth prompt only
+   - `AUTH_MODE = "both"`: accepts session cookie and Basic Auth
 
    **`AI_API_FORMAT`** options:
 
@@ -213,7 +221,7 @@ Visit your Worker URL, log in with the credentials you set, and start receiving 
 
 ### 5. Security Hardening for Cloudflare Free 🔐
 
-1. Enable **Cloudflare Access** on your `workers.dev` (or custom domain) route, and keep Basic Auth enabled in app.
+1. Enable **Cloudflare Access** on your `workers.dev` (or custom domain) route, and keep app auth enabled (`AUTH_MODE = "session"` or `AUTH_MODE = "both"`).
 2. Enable Cloudflare **Managed WAF ruleset** in your zone.
 3. Add a **Rate Limiting** rule for `/api/*` (for example, protect against brute-force and scraping bursts).
 4. Keep `workers.dev` disabled in production if you only use custom domain routes.

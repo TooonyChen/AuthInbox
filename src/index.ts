@@ -11,6 +11,7 @@ import { RPCEmailMessage } from "./rpcEmail";
 import indexHtml from "./index.html";
 
 type ApiFormat = "openai" | "responses" | "anthropic";
+type AuthMode = "basic" | "session" | "both";
 type DensityMode = "default" | "comfortable" | "compact";
 type ReadingPaneMode = "none" | "right" | "bottom";
 type ThemeMode = "dark" | "light" | "system";
@@ -42,6 +43,8 @@ interface ProviderConfig {
 interface Env {
   DB: D1Database;
   ASSETS?: Fetcher;
+  AUTH_MODE?: AuthMode;
+  SESSION_SIGNING_KEY?: string;
   FrontEndAdminID: string;
   FrontEndAdminPassword: string;
   UseBark: string;
@@ -57,6 +60,22 @@ interface Env {
   AI_FALLBACK_API_KEY?: string;
   AI_FALLBACK_API_FORMAT?: ApiFormat;
   AI_FALLBACK_MODEL?: string;
+}
+
+interface AuthSessionRow {
+  session_id: string;
+  username: string;
+  csrf_token: string;
+  ip_hash: string | null;
+  user_agent_hash: string | null;
+  expires_at: string;
+  revoked: number;
+}
+
+interface AuthAttemptRow {
+  ip_key: string;
+  attempt_count: number;
+  blocked_until: string | null;
 }
 
 interface UiSettingsRow {
@@ -99,6 +118,13 @@ interface SearchTokens {
   hasFlags: Array<"attachment">;
 }
 
+interface AuthContext {
+  method: "basic" | "session";
+  username: string;
+  sessionId?: string;
+  csrfToken?: string;
+}
+
 const NO_STORE_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   Pragma: "no-cache",
@@ -107,11 +133,20 @@ const NO_STORE_HEADERS: Record<string, string> = {
 const HARDENING_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
+  "X-Frame-Options": "DENY",
+  "Content-Security-Policy":
+    "default-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
 };
 
 const MAX_PROMPT_BODY_LENGTH = 8000;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
+const SESSION_TTL_SECONDS = 60 * 60 * 12;
+const SESSION_COOKIE_NAME = "__Host-authinbox_session";
+const CSRF_COOKIE_NAME = "__Host-authinbox_csrf";
+const CSRF_HEADER_NAME = "x-csrf-token";
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_BLOCK_MINUTES = 15;
 const CATEGORY_VALUES: MailCategory[] = ["primary", "social", "promotions", "updates", "forums"];
 const DENSITY_VALUES: DensityMode[] = ["default", "comfortable", "compact"];
 const READING_PANE_VALUES: ReadingPaneMode[] = ["none", "right", "bottom"];
@@ -188,6 +223,19 @@ function unauthorizedResponse(): Response {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "WWW-Authenticate": "Basic realm=\"User Visible Realm\"",
+    },
+  });
+}
+
+function unauthorizedJsonResponse(): Response {
+  return jsonResponse({ error: "Unauthorized" }, 401);
+}
+
+function redirectResponse(location: string, status = 302): Response {
+  return toSecureResponse(null, {
+    status,
+    headers: {
+      Location: location,
     },
   });
 }
@@ -1045,21 +1093,520 @@ async function parseJsonBody<T>(request: Request): Promise<T | null> {
   }
 }
 
+export function normalizeAuthMode(rawValue: string | undefined): AuthMode {
+  if (rawValue === "basic" || rawValue === "session" || rawValue === "both") {
+    return rawValue;
+  }
+  return "both";
+}
+
+export function isPublicAssetPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/assets/")
+    || pathname === "/favicon.ico"
+    || pathname === "/manifest.webmanifest"
+    || pathname === "/robots.txt"
+    || pathname === "/apple-touch-icon.png"
+  );
+}
+
+function parseCookies(request: Request): Map<string, string> {
+  const result = new Map<string, string>();
+  const cookieHeader = request.headers.get("Cookie");
+  if (!cookieHeader) {
+    return result;
+  }
+
+  const pairs = cookieHeader.split(";");
+  for (const pair of pairs) {
+    const separatorIndex = pair.indexOf("=");
+    if (separatorIndex <= 0) continue;
+    const key = pair.slice(0, separatorIndex).trim();
+    const value = pair.slice(separatorIndex + 1).trim();
+    if (!key) continue;
+    try {
+      result.set(key, decodeURIComponent(value));
+    } catch {
+      result.set(key, value);
+    }
+  }
+  return result;
+}
+
+function buildCookie(options: {
+  name: string;
+  value: string;
+  maxAgeSeconds: number;
+  httpOnly?: boolean;
+}): string {
+  const encodedValue = encodeURIComponent(options.value);
+  const parts = [
+    `${options.name}=${encodedValue}`,
+    "Path=/",
+    "Secure",
+    "SameSite=Strict",
+    `Max-Age=${Math.max(0, Math.floor(options.maxAgeSeconds))}`,
+  ];
+  if (options.httpOnly ?? true) {
+    parts.push("HttpOnly");
+  }
+  return parts.join("; ");
+}
+
+function clearCookie(name: string, httpOnly = true): string {
+  return buildCookie({
+    name,
+    value: "",
+    maxAgeSeconds: 0,
+    httpOnly,
+  });
+}
+
+function withSetCookies(response: Response, cookies: string[]): Response {
+  if (cookies.length === 0) return response;
+  const headers = new Headers(response.headers);
+  for (const cookieValue of cookies) {
+    headers.append("Set-Cookie", cookieValue);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function getClientIp(request: Request): string {
+  return request.headers.get("CF-Connecting-IP")?.trim() || "unknown";
+}
+
+function randomHex(bytes = 24): string {
+  const array = new Uint8Array(bytes);
+  crypto.getRandomValues(array);
+  return Array.from(array)
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const input = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", input);
+  const bytes = Array.from(new Uint8Array(digest));
+  return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function createSignedSessionToken(
+  signingKey: string,
+  sessionId: string,
+  expiresAtUnixSeconds: number
+): Promise<string> {
+  const payload = `${sessionId}.${expiresAtUnixSeconds}`;
+  const signature = await hmacSha256Hex(signingKey, payload);
+  return `${payload}.${signature}`;
+}
+
+export async function verifySignedSessionToken(
+  signingKey: string,
+  token: string
+): Promise<{ sessionId: string; expiresAtUnixSeconds: number } | null> {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [sessionId, expiresPart, signature] = parts;
+  const expiresAtUnixSeconds = Number.parseInt(expiresPart, 10);
+  if (!Number.isFinite(expiresAtUnixSeconds) || expiresAtUnixSeconds <= 0) {
+    return null;
+  }
+  if (Math.floor(Date.now() / 1000) >= expiresAtUnixSeconds) {
+    return null;
+  }
+
+  const expected = await hmacSha256Hex(signingKey, `${sessionId}.${expiresAtUnixSeconds}`);
+  if (!fixedTimeEquals(signature, expected)) {
+    return null;
+  }
+
+  return { sessionId, expiresAtUnixSeconds };
+}
+
+async function ensureAuthTables(db: D1Database): Promise<void> {
+  await db.prepare(
+    `
+      CREATE TABLE IF NOT EXISTS auth_sessions (
+        session_id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        csrf_token TEXT NOT NULL,
+        ip_hash TEXT,
+        user_agent_hash TEXT,
+        expires_at DATETIME NOT NULL,
+        revoked INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+  ).run();
+
+  await db.prepare(
+    `
+      CREATE TABLE IF NOT EXISTS auth_login_attempts (
+        ip_key TEXT PRIMARY KEY,
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        blocked_until DATETIME,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+  ).run();
+
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions (expires_at)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_auth_sessions_revoked ON auth_sessions (revoked, expires_at)").run();
+}
+
+async function checkLoginAttempt(
+  db: D1Database,
+  ipKey: string
+): Promise<{ blocked: boolean; retryAfterSeconds: number }> {
+  const row = await db.prepare(
+    `
+      SELECT ip_key, attempt_count, blocked_until
+      FROM auth_login_attempts
+      WHERE ip_key = ?
+      LIMIT 1
+    `
+  ).bind(ipKey).first<AuthAttemptRow>();
+
+  if (!row?.blocked_until) {
+    return { blocked: false, retryAfterSeconds: 0 };
+  }
+
+  const blockedUntil = new Date(row.blocked_until);
+  if (Number.isNaN(blockedUntil.getTime()) || blockedUntil.getTime() <= Date.now()) {
+    return { blocked: false, retryAfterSeconds: 0 };
+  }
+
+  const retryAfterSeconds = Math.max(1, Math.ceil((blockedUntil.getTime() - Date.now()) / 1000));
+  return { blocked: true, retryAfterSeconds };
+}
+
+async function recordLoginFailure(db: D1Database, ipKey: string): Promise<void> {
+  const row = await db.prepare(
+    `
+      SELECT attempt_count
+      FROM auth_login_attempts
+      WHERE ip_key = ?
+      LIMIT 1
+    `
+  ).bind(ipKey).first<{ attempt_count: number }>();
+
+  const nextAttempts = Number(row?.attempt_count ?? 0) + 1;
+  const shouldBlock = nextAttempts >= MAX_LOGIN_ATTEMPTS;
+  const blockedUntil = shouldBlock
+    ? new Date(Date.now() + LOGIN_BLOCK_MINUTES * 60 * 1000).toISOString()
+    : null;
+
+  await db.prepare(
+    `
+      INSERT INTO auth_login_attempts (ip_key, attempt_count, blocked_until, updated_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(ip_key) DO UPDATE SET
+        attempt_count = excluded.attempt_count,
+        blocked_until = excluded.blocked_until,
+        updated_at = CURRENT_TIMESTAMP
+    `
+  )
+    .bind(ipKey, nextAttempts, blockedUntil)
+    .run();
+}
+
+async function clearLoginFailures(db: D1Database, ipKey: string): Promise<void> {
+  await db.prepare("DELETE FROM auth_login_attempts WHERE ip_key = ?").bind(ipKey).run();
+}
+
+async function createSession(
+  env: Env,
+  request: Request,
+  username: string
+): Promise<{ sessionId: string; csrfToken: string; token: string; expiresAtUnixSeconds: number }> {
+  const signingKey = env.SESSION_SIGNING_KEY;
+  if (!signingKey) {
+    throw new Error("SESSION_SIGNING_KEY is not configured");
+  }
+
+  await ensureAuthTables(env.DB);
+
+  const sessionId = crypto.randomUUID();
+  const csrfToken = randomHex(24);
+  const expiresAtUnixSeconds = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  const expiresAtIso = new Date(expiresAtUnixSeconds * 1000).toISOString();
+  const ipHash = await sha256Hex(getClientIp(request));
+  const userAgentHash = await sha256Hex(request.headers.get("User-Agent") ?? "");
+
+  await env.DB.prepare(
+    `
+      INSERT INTO auth_sessions (
+        session_id, username, csrf_token, ip_hash, user_agent_hash, expires_at, revoked, last_seen_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+    `
+  )
+    .bind(sessionId, username, csrfToken, ipHash, userAgentHash, expiresAtIso)
+    .run();
+
+  const token = await createSignedSessionToken(signingKey, sessionId, expiresAtUnixSeconds);
+  return {
+    sessionId,
+    csrfToken,
+    token,
+    expiresAtUnixSeconds,
+  };
+}
+
+async function resolveSessionContext(env: Env, request: Request): Promise<AuthContext | null> {
+  const signingKey = env.SESSION_SIGNING_KEY;
+  if (!signingKey) return null;
+
+  const cookies = parseCookies(request);
+  const sessionToken = cookies.get(SESSION_COOKIE_NAME);
+  if (!sessionToken) return null;
+  await ensureAuthTables(env.DB);
+
+  const verified = await verifySignedSessionToken(signingKey, sessionToken);
+  if (!verified) return null;
+
+  const row = await env.DB.prepare(
+    `
+      SELECT session_id, username, csrf_token, ip_hash, user_agent_hash, expires_at, revoked
+      FROM auth_sessions
+      WHERE session_id = ?
+      LIMIT 1
+    `
+  ).bind(verified.sessionId).first<AuthSessionRow>();
+
+  if (!row || Number(row.revoked) === 1) {
+    return null;
+  }
+
+  const expiresAt = new Date(row.expires_at);
+  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+    return null;
+  }
+
+  const requestIpHash = await sha256Hex(getClientIp(request));
+  const requestUserAgentHash = await sha256Hex(request.headers.get("User-Agent") ?? "");
+  if (row.ip_hash && !fixedTimeEquals(row.ip_hash, requestIpHash)) {
+    return null;
+  }
+  if (row.user_agent_hash && !fixedTimeEquals(row.user_agent_hash, requestUserAgentHash)) {
+    return null;
+  }
+
+  await env.DB.prepare(
+    `
+      UPDATE auth_sessions
+      SET last_seen_at = CURRENT_TIMESTAMP
+      WHERE session_id = ?
+    `
+  ).bind(row.session_id).run();
+
+  return {
+    method: "session",
+    username: row.username,
+    sessionId: row.session_id,
+    csrfToken: row.csrf_token,
+  };
+}
+
+function isStateChangingMethod(method: string): boolean {
+  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function validateCsrf(request: Request, authContext: AuthContext): boolean {
+  if (authContext.method !== "session") {
+    return true;
+  }
+  if (!isStateChangingMethod(request.method)) {
+    return true;
+  }
+  const cookies = parseCookies(request);
+  const csrfCookie = cookies.get(CSRF_COOKIE_NAME);
+  const csrfHeader = request.headers.get(CSRF_HEADER_NAME);
+  if (!csrfCookie || !csrfHeader || !authContext.csrfToken) {
+    return false;
+  }
+  return fixedTimeEquals(csrfCookie, csrfHeader) && fixedTimeEquals(authContext.csrfToken, csrfHeader);
+}
+
 export default class extends WorkerEntrypoint<Env> {
   async fetch(request: Request): Promise<Response> {
     const env: Env = this.env;
     const FrontEndAdminID = env.FrontEndAdminID;
     const FrontEndAdminPassword = env.FrontEndAdminPassword;
+    const requestedAuthMode = normalizeAuthMode(env.AUTH_MODE);
+    const authMode: AuthMode =
+      (!env.SESSION_SIGNING_KEY && requestedAuthMode !== "basic")
+        ? "basic"
+        : requestedAuthMode;
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+    const isApiPath = pathname.startsWith("/api/");
+    const isAuthPath = pathname.startsWith("/auth/");
+    const isLoginPath = pathname === "/login";
+    const isPublicPath = isLoginPath || isPublicAssetPath(pathname);
 
-    // Basic-auth gate for the admin console // 使用 Basic Auth 保护管理界面
     const authHeader = request.headers.get("Authorization");
-    if (!isAuthorizedBasicAuth(authHeader, FrontEndAdminID, FrontEndAdminPassword)) {
+    const basicAuthorized = isAuthorizedBasicAuth(authHeader, FrontEndAdminID, FrontEndAdminPassword);
+    const sessionContext = authMode === "basic" ? null : await resolveSessionContext(env, request);
+
+    let authContext: AuthContext | null = null;
+    if (sessionContext) {
+      authContext = sessionContext;
+    } else if ((authMode === "basic" || authMode === "both") && basicAuthorized) {
+      authContext = { method: "basic", username: FrontEndAdminID };
+    }
+
+    if (pathname === "/auth/login") {
+      if (request.method !== "POST") {
+        return jsonResponse({ error: "Method not allowed" }, 405);
+      }
+
+      const signingKey = env.SESSION_SIGNING_KEY;
+      if (!signingKey) {
+        return jsonResponse({ error: "SESSION_SIGNING_KEY is not configured" }, 503);
+      }
+
+      const payload = await parseJsonBody<{ username?: string; password?: string }>(request);
+      const username = String(payload?.username ?? "").trim();
+      const password = String(payload?.password ?? "");
+      if (!username || !password) {
+        return jsonResponse({ error: "Username and password are required" }, 400);
+      }
+
+      await ensureAuthTables(env.DB);
+      const ipKey = await sha256Hex(`auth-login:${getClientIp(request)}`);
+      const attemptState = await checkLoginAttempt(env.DB, ipKey);
+      if (attemptState.blocked) {
+        return toSecureResponse(
+          JSON.stringify({ error: "Too many failed attempts. Try again later." }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+              "Retry-After": String(attemptState.retryAfterSeconds),
+            },
+          }
+        );
+      }
+
+      const credentialsMatch =
+        fixedTimeEquals(username, FrontEndAdminID)
+        && fixedTimeEquals(password, FrontEndAdminPassword);
+
+      if (!credentialsMatch) {
+        await recordLoginFailure(env.DB, ipKey);
+        return jsonResponse({ error: "Invalid credentials" }, 401);
+      }
+
+      await clearLoginFailures(env.DB, ipKey);
+      const createdSession = await createSession(env, request, username);
+      const response = jsonResponse({
+        authenticated: true,
+        username,
+        csrfToken: createdSession.csrfToken,
+      });
+      return withSetCookies(response, [
+        buildCookie({
+          name: SESSION_COOKIE_NAME,
+          value: createdSession.token,
+          maxAgeSeconds: SESSION_TTL_SECONDS,
+          httpOnly: true,
+        }),
+        buildCookie({
+          name: CSRF_COOKIE_NAME,
+          value: createdSession.csrfToken,
+          maxAgeSeconds: SESSION_TTL_SECONDS,
+          httpOnly: false,
+        }),
+      ]);
+    }
+
+    if (pathname === "/auth/session") {
+      if (request.method !== "GET") {
+        return jsonResponse({ error: "Method not allowed" }, 405);
+      }
+      if (!authContext) {
+        return jsonResponse({ authenticated: false }, 401);
+      }
+      return jsonResponse({
+        authenticated: true,
+        username: authContext.username,
+        method: authContext.method,
+        csrfToken: authContext.method === "session" ? authContext.csrfToken : null,
+      });
+    }
+
+    if (pathname === "/auth/logout") {
+      if (request.method !== "POST") {
+        return jsonResponse({ error: "Method not allowed" }, 405);
+      }
+      if (authContext?.method === "session" && !validateCsrf(request, authContext)) {
+        return jsonResponse({ error: "CSRF validation failed" }, 403);
+      }
+      if (authContext?.method === "session" && authContext.sessionId) {
+        await ensureAuthTables(env.DB);
+        await env.DB.prepare(
+          `
+            UPDATE auth_sessions
+            SET revoked = 1, last_seen_at = CURRENT_TIMESTAMP
+            WHERE session_id = ?
+          `
+        ).bind(authContext.sessionId).run();
+      }
+      const response = jsonResponse({ success: true });
+      return withSetCookies(response, [
+        clearCookie(SESSION_COOKIE_NAME, true),
+        clearCookie(CSRF_COOKIE_NAME, false),
+      ]);
+    }
+
+    if (authMode === "basic" && !authContext) {
       return unauthorizedResponse();
     }
 
-    const url = new URL(request.url);
+    if (!authContext && !isAuthPath && !isPublicPath) {
+      if (isApiPath) {
+        return unauthorizedJsonResponse();
+      }
+      return redirectResponse("/login");
+    }
 
-    if (url.pathname.startsWith("/api/v2/")) {
+    if (authContext && isLoginPath) {
+      return redirectResponse("/");
+    }
+
+    if (
+      authContext
+      && authContext.method === "session"
+      && isApiPath
+      && isStateChangingMethod(request.method)
+      && !validateCsrf(request, authContext)
+    ) {
+      return jsonResponse({ error: "CSRF validation failed" }, 403);
+    }
+
+    if (pathname.startsWith("/api/v2/")) {
       await ensureGmailUiTables(env.DB);
 
       if (url.pathname === "/api/v2/settings" && request.method === "GET") {
@@ -1525,11 +2072,13 @@ export default class extends WorkerEntrypoint<Env> {
     if (env.ASSETS) {
       const assetResponse = await env.ASSETS.fetch(request);
       if (assetResponse.status !== 404) {
+        const contentType = assetResponse.headers.get("Content-Type")?.toLowerCase() ?? "";
+        const shouldNoStore = contentType.includes("text/html") || !isPublicAssetPath(pathname);
         return toSecureResponse(assetResponse.body, {
           status: assetResponse.status,
           statusText: assetResponse.statusText,
           headers: assetResponse.headers,
-        }, { noStore: false });
+        }, { noStore: shouldNoStore });
       }
 
       if (request.method === "GET" || request.method === "HEAD") {
@@ -1540,7 +2089,7 @@ export default class extends WorkerEntrypoint<Env> {
             status: indexResponse.status,
             statusText: indexResponse.statusText,
             headers: indexResponse.headers,
-          }, { noStore: false });
+          });
         }
       }
     }
