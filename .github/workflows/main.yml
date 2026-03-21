@@ -77,6 +77,7 @@ jobs:
           }
 
           put_secret "FrontEndAdminPassword" "${{ secrets.FRONTEND_ADMIN_PASSWORD }}"
+          put_secret "SESSION_SIGNING_KEY" "${{ secrets.SESSION_SIGNING_KEY }}"
           put_secret "AI_API_KEY" "${{ secrets.AI_API_KEY }}"
           put_secret "AI_FALLBACK_API_KEY" "${{ secrets.AI_FALLBACK_API_KEY }}"
           put_secret "barkTokens" "${{ secrets.BARK_TOKENS }}"

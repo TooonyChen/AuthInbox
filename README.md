@@ -85,6 +85,7 @@ flowchart LR
    - `CLOUDFLARE_ACCOUNT_ID`
    - `CLOUDFLARE_API_TOKEN`
    - `FRONTEND_ADMIN_PASSWORD`
+   - `SESSION_SIGNING_KEY` *(required for `AUTH_MODE=session` or `AUTH_MODE=both`)*
    - `AI_API_KEY`
    - *(Optional)* `AI_FALLBACK_API_KEY`
    - *(Optional, Bark)* `BARK_TOKENS`

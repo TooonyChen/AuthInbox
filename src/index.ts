@@ -1305,14 +1305,17 @@ async function checkLoginAttempt(
 async function recordLoginFailure(db: D1Database, ipKey: string): Promise<void> {
   const row = await db.prepare(
     `
-      SELECT attempt_count
+      SELECT attempt_count, blocked_until
       FROM auth_login_attempts
       WHERE ip_key = ?
       LIMIT 1
     `
-  ).bind(ipKey).first<{ attempt_count: number }>();
+  ).bind(ipKey).first<{ attempt_count: number; blocked_until: string | null }>();
 
-  const nextAttempts = Number(row?.attempt_count ?? 0) + 1;
+  const blockedUntilMillis = row?.blocked_until ? new Date(row.blocked_until).getTime() : Number.NaN;
+  const hasExpiredBlock = Number.isFinite(blockedUntilMillis) && blockedUntilMillis <= Date.now();
+  const previousAttempts = hasExpiredBlock ? 0 : Number(row?.attempt_count ?? 0);
+  const nextAttempts = previousAttempts + 1;
   const shouldBlock = nextAttempts >= MAX_LOGIN_ATTEMPTS;
   const blockedUntil = shouldBlock
     ? new Date(Date.now() + LOGIN_BLOCK_MINUTES * 60 * 1000).toISOString()
@@ -1524,6 +1527,7 @@ export default class extends WorkerEntrypoint<Env> {
       const response = jsonResponse({
         authenticated: true,
         username,
+        method: "session",
         csrfToken: createdSession.csrfToken,
       });
       return withSetCookies(response, [
@@ -1592,7 +1596,7 @@ export default class extends WorkerEntrypoint<Env> {
       return redirectResponse("/login");
     }
 
-    if (authContext && isLoginPath) {
+    if (authContext && isLoginPath && !(authMode === "both" && authContext.method === "basic")) {
       return redirectResponse("/");
     }
 

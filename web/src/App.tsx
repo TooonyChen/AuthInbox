@@ -248,6 +248,7 @@ function App(): JSX.Element {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [isAuthLoading, setIsAuthLoading] = useState(true);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
+	const [authMethod, setAuthMethod] = useState<'basic' | 'session' | null>(null);
 	const [authUser, setAuthUser] = useState<string | null>(null);
 	const [csrfToken, setCsrfToken] = useState('');
 	const [loginUsername, setLoginUsername] = useState('admin');
@@ -288,6 +289,7 @@ function App(): JSX.Element {
 	const handleUnauthorized = useCallback((error: unknown): boolean => {
 		if (error instanceof HttpError && error.status === 401) {
 			setIsAuthenticated(false);
+			setAuthMethod(null);
 			setAuthUser(null);
 			setCsrfToken('');
 			if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
@@ -302,11 +304,13 @@ function App(): JSX.Element {
 		try {
 			const payload = await fetchJson<SessionPayload>('/auth/session');
 			setIsAuthenticated(Boolean(payload.authenticated));
+			setAuthMethod(payload.method === 'basic' || payload.method === 'session' ? payload.method : null);
 			setAuthUser(payload.username ?? null);
 			setCsrfToken(payload.csrfToken ?? '');
 		} catch (error) {
 			if (error instanceof HttpError && error.status === 401) {
 				setIsAuthenticated(false);
+				setAuthMethod(null);
 				setAuthUser(null);
 				setCsrfToken('');
 			} else {
@@ -438,10 +442,10 @@ function App(): JSX.Element {
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
-		if (!isAuthLoading && isAuthenticated && isLoginRoute) {
+		if (!isAuthLoading && isAuthenticated && isLoginRoute && authMethod === 'session') {
 			window.location.replace('/');
 		}
-	}, [isAuthLoading, isAuthenticated, isLoginRoute]);
+	}, [authMethod, isAuthLoading, isAuthenticated, isLoginRoute]);
 
 	useEffect(() => {
 		if (!isAuthenticated) return;
@@ -633,6 +637,7 @@ function App(): JSX.Element {
 				password: loginPassword,
 			});
 			setIsAuthenticated(Boolean(payload.authenticated));
+			setAuthMethod(payload.method === 'basic' || payload.method === 'session' ? payload.method : 'session');
 			setAuthUser(payload.username ?? loginUsername.trim());
 			setCsrfToken(payload.csrfToken ?? '');
 			setLoginPassword('');
@@ -654,6 +659,7 @@ function App(): JSX.Element {
 			console.error(error);
 		} finally {
 			setIsAuthenticated(false);
+			setAuthMethod(null);
 			setAuthUser(null);
 			setCsrfToken('');
 			if (typeof window !== 'undefined') {
@@ -663,6 +669,7 @@ function App(): JSX.Element {
 	};
 
 	const showDetailPane = settings.readingPane !== 'none' || singlePaneOpen;
+	const shouldShowLogin = !isAuthenticated || (isLoginRoute && authMethod === 'basic');
 
 	if (isAuthLoading) {
 		return (
@@ -677,7 +684,7 @@ function App(): JSX.Element {
 		);
 	}
 
-	if (!isAuthenticated) {
+	if (shouldShowLogin) {
 		return (
 			<div className={cn('gmail-root login-page min-h-screen', effectiveTheme === 'light' ? 'theme-light' : 'theme-dark')}>
 				<Toaster theme={effectiveTheme === 'light' ? 'light' : 'dark'} position="bottom-right" closeButton />
