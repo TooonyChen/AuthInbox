@@ -5,7 +5,7 @@
   "scripts": {
     "build:web": "pnpm -C web run build",
     "dev:web": "pnpm -C web run dev",
-    "deploy": "pnpm run build:web && wrangler deploy",
+    "deploy": "pnpm run build:web && pnpm run db:migrate:remote && wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "test": "vitest",

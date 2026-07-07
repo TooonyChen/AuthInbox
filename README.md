@@ -22,7 +22,7 @@ src/
     auth.ts                # PBKDF2 / JWT / API key
     mail.ts                # visibleMails — 唯一的权限过滤查询层
     classify.ts            # LLM 提取 (prompt 加了 category)
-    mime.ts                # 旧版 MIME 工具原样迁移
+    mime.ts                # MIME/encoded-word 解码、HTML 去标签、推广邮件识别
   email/
     handler.ts             # email() 逻辑, 写入 category
     rpcEmail.ts            # 原样保留
@@ -37,21 +37,21 @@ src/
    pnpm add hono @hono/mcp @modelcontextprotocol/sdk zod
    ```
 
-2. 设置 secret（JWT 签名用，随便一串长随机字符串）:
+2. 设置 secret（JWT 签名用，随便一串长随机字符串）。生产环境不要把它写进 `wrangler.toml`:
 
    ```bash
-   openssl rand -hex 32 | wrangler secret put JWT_SECRET
+   pnpm exec wrangler secret put JWT_SECRET
    ```
 
-3. wrangler.toml 里删掉 `FrontEndAdminID` / `FrontEndAdminPassword`（已被 users 表取代），其余 vars 不变。
+3. `FrontEndAdminID` / `FrontEndAdminPassword` 已被 users 表取代，不再需要配置。首次部署后在登录页创建第一个 admin。
 
-4. 迁移数据库。首次使用 wrangler migrations 需要先建 `migrations/` 目录并让 wrangler 认领 0001 为已执行（现有库已经有这两张表，0001 是幂等的所以直接 apply 也安全）:
+4. 迁移数据库。`pnpm run deploy` 会自动先执行远端 D1 migrations 再部署 Worker；也可以单独执行:
 
    ```bash
    pnpm run db:migrate:remote
    ```
 
-5. 部署后创建第一个 admin（users 表为空时此端点才可用，之后永久关闭）:
+5. 部署后创建第一个 admin。登录页会自动检测 `GET /api/auth/setup`；users 表为空时会显示创建 admin 表单。也可以用 API:
 
    ```bash
    curl -X POST https://your.domain/api/auth/setup \

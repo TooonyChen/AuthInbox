@@ -1,5 +1,6 @@
 import type { Env, ProviderConfig, MailCategory } from "../types";
 import { MAIL_CATEGORIES } from "../types";
+import { extractMailBodies, stripHtmlTags } from "./mime";
 
 /*
  * callProvider / extractJsonFromText 从旧 index.ts 原样迁移,
@@ -111,8 +112,11 @@ async function callProvider(config: ProviderConfig, prompt: string): Promise<str
 }
 
 function buildPrompt(rawEmail: string): string {
+  const { textBody, htmlBody } = extractMailBodies(rawEmail);
+  const emailContent = textBody ?? (htmlBody ? stripHtmlTags(htmlBody) : rawEmail);
+
   return `
-Email content: ${rawEmail}
+Email content: ${emailContent}
 
 Please read the email and extract the following information:
 1. Code/Link/Password from the email (if available).

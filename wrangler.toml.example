@@ -46,17 +46,6 @@ barkTokens = "[token1, token2]"
 # 设定你的 bark tokens，从 https://bark.day.app/ 下载iOS APP，你可以使用多个 tokens，如果你只使用一个 token，那么设置为 "[token1]"
 # 如果你不使用 bark 推送，那么无需改动
 
-FrontEndAdminID = "admin"
-# FrontEndAdminID: String
-# your login **Please change it to your own login**
-# 你的登录账号 **请更改为你自己的登录账号**
-
-FrontEndAdminPassword = "password"
-# FrontEndAdminPassword: String
-# your password **Please change it to your own password**
-# 你的登录密码 **请更改为你自己的登录密码**
-
-
 # --- Primary AI provider ---
 AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 # Base URL of your AI provider (no trailing slash).

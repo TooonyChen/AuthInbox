@@ -72,9 +72,7 @@ flowchart LR
 
    进入 [Cloudflare 仪表盘](https://dash.cloudflare.com/) → `Workers & Pages` → `D1 SQL Database` → `Create`，名称填 `inbox-d1`。
 
-   点击进入数据库 → `Console`，粘贴并执行 [`db/schema.sql`](https://github.com/TooonyChen/AuthInbox/blob/main/db/schema.sql) 中的内容。
-
-   复制 `database_id`，下一步会用到。
+   复制 `database_id`，下一步会用到。数据库表由仓库里的 `migrations/` 管理，部署 workflow 会先执行 D1 migrations。
 
 2. **Fork 并部署**
 
@@ -83,11 +81,13 @@ flowchart LR
    在你 Fork 的仓库中，进入 `Settings` → `Secrets and variables` → `Actions`，添加以下 Secrets：
    - `CLOUDFLARE_ACCOUNT_ID`
    - `CLOUDFLARE_API_TOKEN`
-   - `TOML` — 使用[不带注释的模板](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear)，避免解析报错。
+   - `TOML` — 使用[不带注释的模板](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear)，填入 D1 `database_id` 和 AI 配置，避免解析报错。
 
    然后进入 `Actions` → `Deploy Auth Inbox to Cloudflare Workers` → `Run workflow`。
 
-   部署成功后，**务必删除 workflow 日志**，防止配置信息泄露。
+   部署成功后，到 Cloudflare Worker 的 `Settings` → `Variables and Secrets` 添加 secret：`JWT_SECRET`（一串足够长的随机字符串）。首次打开登录页时，系统会在 users 表为空时引导你创建第一个 admin。
+
+   **务必删除 workflow 日志**，防止配置信息泄露。
 
 3. 跳转到[设置邮件转发](#3-设置邮件转发-)。
 
@@ -107,7 +107,6 @@ flowchart LR
 
    ```bash
    pnpm wrangler d1 create inbox-d1
-   pnpm wrangler d1 execute inbox-d1 --remote --file=./db/schema.sql
    ```
 
    复制输出中的 `database_id`。
@@ -122,9 +121,7 @@ flowchart LR
 
    ```toml
    [vars]
-   FrontEndAdminID       = "你的登录账号"
-   FrontEndAdminPassword = "你的登录密码"
-   UseBark               = "false"
+   UseBark = "false"
 
    # AI 提供商配置
    AI_BASE_URL    = "https://generativelanguage.googleapis.com/v1beta/openai"
@@ -137,6 +134,8 @@ flowchart LR
    database_name = "inbox-d1"
    database_id   = "<你的数据库ID>"
    ```
+
+   `FrontEndAdminID` / `FrontEndAdminPassword` 已不再使用。用户存储在 D1 的 `users` 表里；首次部署后通过登录页创建第一个 admin。
 
    **`AI_API_FORMAT`** 三选一：
 
@@ -165,11 +164,19 @@ flowchart LR
 
    可选 Bark 配置：`barkTokens`、`barkUrl`。
 
+   设置 JWT secret（生产环境不要写进 `wrangler.toml`）：
+
+   ```bash
+   pnpm exec wrangler secret put JWT_SECRET
+   ```
+
 4. **构建并部署**
 
    ```bash
    pnpm run deploy
    ```
+
+   `pnpm run deploy` 会依次构建前端、执行远端 D1 migrations、部署 Worker。
 
    输出：`https://auth-inbox.<你的子域名>.workers.dev`
 

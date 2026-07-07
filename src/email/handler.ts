@@ -1,6 +1,6 @@
 import type { Env } from "../types";
 import { extractMailInfo } from "../services/classify";
-import { isPromotionalEmail } from "../services/mime";
+import { decodeMimeHeader, isPromotionalEmail } from "../services/mime";
 import { RPCEmailMessage } from "./rpcEmail";
 
 /*
@@ -39,7 +39,7 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
       ? String((message as RPCEmailMessage).rawEmail)
       : await new Response(message.raw).text();
   const messageId = message.headers.get("Message-ID");
-  const rawSubject = message.headers.get("Subject");
+  const rawSubject = decodeMimeHeader(message.headers.get("Subject"));
 
   // 边界 2: 进件必写 raw_mails
   const { success } = await env.DB.prepare(
