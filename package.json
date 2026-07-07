@@ -1,6 +1,6 @@
 {
   "name": "auth-inbox",
-  "version": "0.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "build:web": "pnpm -C web run build",
@@ -9,7 +9,15 @@
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "test": "vitest",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply inbox-d1 --local",
+    "db:migrate:remote": "wrangler d1 migrations apply inbox-d1 --remote"
+  },
+  "dependencies": {
+    "@hono/mcp": "^0.1.4",
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "hono": "^4.9.0",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.5.2",
@@ -18,5 +26,10 @@
     "vitest": "2.0.5",
     "wrangler": "^4.73.0"
   },
-  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
+  "packageManager": "pnpm@10.32.1",
+  "description": "Hono 重构 + 多用户/授权 + Remote MCP Server。本目录是可直接落进现有仓库的骨架，前端部分需要你自己把 Basic Auth 换成登录页（见下文）。",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

@@ -1,230 +1,124 @@
-# Auth Inbox 📬
+# AuthInbox v2 骨架
 
-[English](https://github.com/TooonyChen/AuthInbox/blob/main/README.md) | [简体中文](https://github.com/TooonyChen/AuthInbox/blob/main/README_CN.md)
+Hono 重构 + 多用户/授权 + Remote MCP Server。本目录是可直接落进现有仓库的骨架，前端部分需要你自己把 Basic Auth 换成登录页（见下文）。
 
-**Auth Inbox** is an open-source, self-hosted email verification code platform built on [Cloudflare](https://cloudflare.com/)'s free serverless services. It automatically processes incoming emails, filters out promotional mail before hitting the AI, extracts verification codes or links, and stores them in a database. A modern React dashboard lets administrators review extracted codes, inspect raw emails, and render HTML email previews — all protected by Basic Auth.
+## 目录结构
 
-Don't want ads and spam in your main inbox? Need a bunch of alternative addresses for signups? Try this **secure**, **serverless**, **lightweight** service!
-
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
-
-```mermaid
-flowchart LR
-    A([Your Inboxes]) --> B[Email Worker]
-    B --> C{Promotional?}
-    C -->|Yes| D[Discard]
-    C -->|No| E[AI Extraction]
-    E --> F[(D1 Database)]
-    F --> G[React Dashboard]
-    F --> H([Bark iOS Push])
+```
+migrations/
+  0001_baseline.sql        # 现有 schema, 幂等
+  0002_multi_user.sql      # users / api_keys / grants / category 列
+src/
+  index.ts                 # WorkerEntrypoint 壳: fetch → Hono, email → handler
+  app.ts                   # Hono app + 认证边界
+  types.ts                 # Env / AppEnv / 分类枚举
+  middleware/auth.ts       # sessionAuth / requireAdmin / apiKeyAuth
+  routes/
+    auth.ts                # /api/auth: setup, login, logout, me
+    mails.ts               # /api/mails: 列表 + 详情 (自动按用户过滤)
+    admin.ts               # /api/admin: users + grants 管理
+    keys.ts                # /api/keys: 自助签发 MCP API key
+  services/
+    auth.ts                # PBKDF2 / JWT / API key
+    mail.ts                # visibleMails — 唯一的权限过滤查询层
+    classify.ts            # LLM 提取 (prompt 加了 category)
+    mime.ts                # 旧版 MIME 工具原样迁移
+  email/
+    handler.ts             # email() 逻辑, 写入 category
+    rpcEmail.ts            # 原样保留
+  mcp/server.ts            # /mcp: list_addresses / list_codes / get_latest_code / wait_for_code
 ```
 
----
+## 从现有仓库迁移
 
-## Table of Contents 📑
-
-- [Features](#features-)
-- [Technologies Used](#technologies-used-)
-- [Installation](#installation-)
-- [License](#license-)
-- [Screenshots](#screenshots-)
-
----
-
-## Features ✨
-
-- **Promotional Filter**: Detects and skips bulk/marketing emails via headers (`List-Unsubscribe`, `Precedence: bulk`, etc.) before calling the AI — saves tokens.
-- **AI Code Extraction**: Uses Google Gemini (with OpenAI as fallback) to extract verification codes, links, and organization names.
-- **Modern Dashboard**: React 18 + shadcn/ui interface with mail list, detail panel, and three tabs — Extracted, Raw Email, Rendered HTML preview.
-- **Safe HTML Preview**: Email HTML is sanitized with DOMPurify and rendered in a sandboxed iframe.
-- **One-click Copy**: Verification codes and links have copy buttons with toast confirmation.
-- **Real-Time Notifications**: Optionally sends Bark push notifications when new codes arrive.
-- **Database**: Stores all raw emails and AI-extracted results in Cloudflare D1.
-
----
-
-## Technologies Used 🛠️
-
-- **Cloudflare Workers** — Serverless runtime for email handling and API.
-- **Cloudflare D1** — SQLite-compatible serverless database.
-- **Cloudflare Email Routing** — Routes incoming emails to the Worker.
-- **React 18 + Vite + Tailwind CSS + shadcn/ui** — Frontend dashboard.
-- **Any OpenAI-compatible / Anthropic AI provider** — Configurable via env vars; Gemini, OpenAI, DeepSeek, Groq, Anthropic, and more.
-- **Bark API** — Optional iOS push notifications.
-- **TypeScript** — End-to-end type safety.
-
----
-
-## Installation ⚙️
-
-### Prerequisites
-
-- A [Google AI Studio API key](https://aistudio.google.com/)
-- A domain bound to your [Cloudflare](https://dash.cloudflare.com/) account
-- Cloudflare Account ID and API Token from [here](https://dash.cloudflare.com/profile/api-tokens)
-- *(Optional)* [Bark App](https://bark.day.app/) for iOS push notifications
-
----
-
-### Option 1 — Deploy via GitHub Actions
-
-1. **Create D1 Database**
-
-   Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → `Workers & Pages` → `D1 SQL Database` → `Create`. Name it `inbox-d1`.
-
-   Open the database → `Console`, paste and run the contents of [`db/schema.sql`](https://github.com/TooonyChen/AuthInbox/blob/main/db/schema.sql).
-
-   Copy the `database_id` for the next step.
-
-2. **Fork & Deploy**
-
-   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
-
-   In your forked repository, go to `Settings` → `Secrets and variables` → `Actions` and add:
-   - `CLOUDFLARE_ACCOUNT_ID`
-   - `CLOUDFLARE_API_TOKEN`
-   - `TOML` — use the [comment-free template](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear) to avoid parse errors.
-
-   Then go to `Actions` → `Deploy Auth Inbox to Cloudflare Workers` → `Run workflow`.
-
-   After success, **delete the workflow logs** to avoid leaking your config.
-
-3. Jump to [Set Email Forwarding](#3-set-email-forwarding-).
-
----
-
-### Option 2 — Deploy via CLI
-
-1. **Clone and install**
+1. 安装依赖:
 
    ```bash
-   git clone https://github.com/TooonyChen/AuthInbox.git
-   cd AuthInbox
-   pnpm install
+   pnpm add hono @hono/mcp @modelcontextprotocol/sdk zod
    ```
 
-2. **Create D1 database**
+2. 设置 secret（JWT 签名用，随便一串长随机字符串）:
 
    ```bash
-   pnpm wrangler d1 create inbox-d1
-   pnpm wrangler d1 execute inbox-d1 --remote --file=./db/schema.sql
+   openssl rand -hex 32 | wrangler secret put JWT_SECRET
    ```
 
-   Copy the `database_id` from the output.
+3. wrangler.toml 里删掉 `FrontEndAdminID` / `FrontEndAdminPassword`（已被 users 表取代），其余 vars 不变。
 
-3. **Configure**
+4. 迁移数据库。首次使用 wrangler migrations 需要先建 `migrations/` 目录并让 wrangler 认领 0001 为已执行（现有库已经有这两张表，0001 是幂等的所以直接 apply 也安全）:
 
    ```bash
-   cp wrangler.toml.example wrangler.toml
+   pnpm run db:migrate:remote
    ```
 
-   Edit `wrangler.toml` — at minimum fill in:
-
-   ```toml
-   [vars]
-   FrontEndAdminID       = "your-username"
-   FrontEndAdminPassword = "your-password"
-   UseBark               = "false"
-
-   # AI provider — choose any compatible service
-   AI_BASE_URL    = "https://generativelanguage.googleapis.com/v1beta/openai"
-   AI_API_KEY     = "your-api-key"
-   AI_API_FORMAT  = "openai"
-   AI_MODEL       = "gemini-2.0-flash"
-
-   [[d1_databases]]
-   binding       = "DB"
-   database_name = "inbox-d1"
-   database_id   = "<your-database-id>"
-   ```
-
-   **`AI_API_FORMAT`** options:
-
-   | Value | Endpoint | Compatible providers |
-   |---|---|---|
-   | `openai` | `/v1/chat/completions` | OpenAI, Gemini (OpenAI-compat), DeepSeek, Groq, Mistral, … |
-   | `responses` | `/v1/responses` | OpenAI Responses API |
-   | `anthropic` | `/v1/messages` | Anthropic Claude |
-
-   **Common `AI_BASE_URL` values:**
-   ```
-   OpenAI:              https://api.openai.com
-   Gemini (OAI-compat): https://generativelanguage.googleapis.com/v1beta/openai
-   Anthropic:           https://api.anthropic.com
-   DeepSeek:            https://api.deepseek.com
-   Groq:                https://api.groq.com/openai
-   ```
-
-   **Optional fallback provider** (triggered if primary fails after 3 retries):
-   ```toml
-   # AI_FALLBACK_BASE_URL   = "https://api.openai.com"
-   # AI_FALLBACK_API_KEY    = "your-fallback-key"
-   # AI_FALLBACK_API_FORMAT = "openai"
-   # AI_FALLBACK_MODEL      = "gpt-4o-mini"
-   ```
-
-   Optional Bark vars: `barkTokens`, `barkUrl`.
-
-4. **Build and deploy**
+5. 部署后创建第一个 admin（users 表为空时此端点才可用，之后永久关闭）:
 
    ```bash
-   pnpm run deploy
+   curl -X POST https://your.domain/api/auth/setup \
+     -H 'Content-Type: application/json' \
+     -d '{"username":"tony","password":"一个强密码"}'
    ```
 
-   Output: `https://auth-inbox.<your-subdomain>.workers.dev`
+## 前端 (web/, 已完成)
 
----
+沿用原有主题（近黑 + 薄荷绿 #5fe0c0 + Manrope / IBM Plex Mono + 左上光晕），零新依赖，新增两个 shadcn 组件（input、label）。
 
-### 3. Set Email Forwarding ✉️
+- `src/api.ts`: 统一 fetch 层、类型、分类常量（与后端 MAIL_CATEGORIES 同步维护）
+- `src/App.tsx`: 挂载时 GET `/api/auth/me`，401 进登录页；顶部导航按角色渲染，右上角显示当前用户和角色
+- `src/pages/LoginPage.tsx`: 登录页。会先查 GET `/api/auth/setup`，users 表为空时自动切成"创建 admin 账号"模式，建号后直接登录，不用手动 curl setup 接口
+- `src/pages/InboxPage.tsx`: 列表加了分类徽章列和发件方搜索（回车触发，走 `service` 参数）。详情页按角色分叉：admin 保留 Extracted / Raw / Rendered 三个 tab（DOMPurify + sandboxed iframe 逻辑原样保留）；user 只渲染 Extracted 面板，底部一行说明原文仅 admin 可见
+- `src/pages/KeysPage.tsx`: 自助创建 / 吊销 API key，明文只展示一次（带复制按钮），右侧卡片给出 MCP server URL 和 Claude Code 接入命令（自动取当前域名）
+- `src/pages/AdminPage.tsx`: 左卡片用户管理（建号、删号，不能删自己），右卡片授权管理（选用户、填 GLOB pattern、点选分类）。选中敏感分类时出现红色确认框，对应后端的 `allow_sensitive`，不勾的话服务端会把敏感分类从 grant 里剔除
+- 分类徽章配色：login_code 用主题薄荷绿，registration 天蓝，payment 琥珀，敏感类暗红，legacy 虚线灰
 
-Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → `Websites` → `<your-domain>` → `Email` → `Email Routing` → `Routing Rules`.
+旧的 `src/index.html` 服务端兜底页在这版里去掉了，因为它无法感知用户身份。如果你想保留 no-JS 兜底，可以在 `app.ts` 的 SPA fallback 前加一个 session 校验的服务端渲染路由。
 
-**Catch-all** (forwards all addresses to the Worker):
-![image](https://github.com/user-attachments/assets/53e5a939-6b03-4ca6-826a-7a5f02f361ac)
+## 授权模型
 
-**Custom address** (forwards a specific address):
-![image](https://github.com/user-attachments/assets/b0d0ab94-c2ad-4870-ac08-d53e64b2c880)
+- grant = (user, 地址 pattern, 允许的分类, 是否放行敏感类)
+- pattern 用 SQLite GLOB：`netflix@mail.tony.dev` 精确，`*@mail.tony.dev` 通配
+- 分类由 LLM 在提取时打标：`login_code` / `registration` / `password_reset` / `account_security` / `payment` / `other`
+- `password_reset` 和 `account_security` 是敏感类：grant 里就算写了，`allow_sensitive = 0` 时服务层也会剔除
+- 迁移前的历史邮件 category 为 `legacy`，永远只有 admin 可见
+- 普通用户在任何接口（含 MCP）都拿不到邮件原文 raw，只能看到提取后的结构化结果
 
-### 4. Done! 🎉
+给 user 开一个典型 grant：
 
-Visit your Worker URL, log in with the credentials you set, and start receiving verification emails.
+```bash
+curl -X POST https://your.domain/api/admin/grants \
+  -H 'Content-Type: application/json' -b 'authinbox_session=...' \
+  -d '{
+    "userId": 2,
+    "addressPattern": "*@mail.tony.dev",
+    "allowedCategories": ["login_code", "registration"]
+  }'
+```
 
----
+这样 user 2 能看到发到该域名任何地址的 Netflix 登录验证码，但看不到 Netflix 改密码邮件。
 
-## License 📜
+## MCP 接入
 
-[MIT License](LICENSE)
+1. 用户登录 web 后 POST `/api/keys` 拿到 `aik_xxx`（只显示一次）。
+2. Claude Code:
 
----
+   ```bash
+   claude mcp add --transport http authinbox https://your.domain/mcp \
+     --header "Authorization: Bearer aik_xxx"
+   ```
 
-## Screenshots 📸
+3. Tools:
+   - `list_addresses`: 该 key 对应用户可见的收件地址
+   - `list_codes` / `get_latest_code`: 查验证码
+   - `wait_for_code`: 阻塞等新码（最长 55s，只返回调用之后到达的邮件），agent 注册流程的关键工具
 
-![Mail list and extracted code](img/Group%201.png)
+claude.ai 的远程连接器要求 OAuth，这版先不做；以后要接的话在 `/mcp` 前面套 Cloudflare 的 `workers-oauth-provider` 即可，tool 层不用动。
 
-![Mail detail with verification code](img/Group%202.png)
+## 验证清单
 
-![Rendered HTML email preview](img/Group%203.png)
-
----
-
-## Acknowledgements 🙏
-
-- **Cloudflare Workers** for the serverless platform.
-- **Google Gemini AI** for intelligent email extraction.
-- **Bark** for real-time notifications.
-- **shadcn/ui** for the component library.
-- **Open Source Community** for the inspiration.
-
----
-
-## TODO 📝
-
-- [x] GitHub Actions deployment
-- [x] OpenAI fallback support
-- [x] React dashboard with shadcn/ui
-- [x] Promotional email filter (skip ads before LLM)
-- [x] Raw email viewer + sandboxed HTML preview
-- [ ] Regex-based extraction as an AI-free option
-- [ ] Multi-user support
-- [ ] More notification methods (Slack, webhook, etc.)
-- [ ] Sending email support
+- [ ] 旧邮件进件流程不变：发一封测试邮件，raw_mails 和 code_mails 都有记录，category 有值
+- [ ] 推广邮件仍然在 LLM 之前被拦截
+- [ ] user 登录后 `/api/mails` 只返回 grant 范围内、非敏感分类的邮件
+- [ ] user 请求 `/api/mails/:id` 越权时返回 404
+- [ ] user 的 MCP key 调 `list_codes` 结果与 web 端一致
+- [ ] `wait_for_code` 期间发送邮件，能在轮询里被捞到
+- [ ] Bark 推送不变
