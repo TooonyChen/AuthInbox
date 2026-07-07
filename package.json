@@ -27,9 +27,6 @@
     "wrangler": "^4.73.0"
   },
   "packageManager": "pnpm@10.32.1",
-  "description": "Hono 重构 + 多用户/授权 + Remote MCP Server。本目录是可直接落进现有仓库的骨架，前端部分需要你自己把 Basic Auth 换成登录页（见下文）。",
-  "main": "index.js",
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "description": "Self-hosted email verification code platform on Cloudflare Workers — Hono, multi-user grants, remote MCP server for AI agents.",
+  "license": "MIT"
 }

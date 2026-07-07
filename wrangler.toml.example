@@ -86,3 +86,8 @@ database_id = "********-****-****-****-************"
 # database_id: String
 # replace with your database id
 # 请你替换为你的数据库 ID
+
+# --- Required secret (not a [vars] entry) ---
+# JWT_SECRET signs login session tokens. Set it as a Cloudflare Secret after deploy:
+#   pnpm exec wrangler secret put JWT_SECRET
+# JWT_SECRET 用于签名登录会话，请在部署后通过 Cloudflare Secret 设置，不要写进 [vars]。

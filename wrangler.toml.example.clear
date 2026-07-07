@@ -27,3 +27,7 @@ AI_MODEL = "gemini-2.0-flash"
 binding = "DB"
 database_name = "inbox-d1"
 database_id = "********-****-****-****-************"
+
+# Required secret (not a [vars] entry): set JWT_SECRET as a Cloudflare Secret after deploy.
+#   pnpm exec wrangler secret put JWT_SECRET
+# 必需的 secret（不要写进 [vars]）：部署后设置 JWT_SECRET。
