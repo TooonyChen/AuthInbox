@@ -10,7 +10,7 @@
 - `src/email/handler.ts` — incoming email pipeline; `src/email/rpcEmail.ts` — RPC-compatible `ForwardableEmailMessage` wrapper.
 - `src/mcp/server.ts` — remote MCP server at `/mcp` (`@hono/mcp` Streamable HTTP): `list_addresses`, `list_codes`, `get_latest_code`, `wait_for_code`.
 - `web/` — React 18 + Vite + Tailwind + shadcn/ui frontend. Built to `web/dist`, served via Cloudflare `ASSETS` binding. Pages: Login (doubles as first-admin setup), Inbox, API Keys, Users & Access (admin).
-- `migrations/` — D1 schema, applied with `wrangler d1 migrations apply`. Tables: `raw_mails`, `code_mails` (+ `category`), `users`, `api_keys`, `grants`. (`db/schema.sql` is the pre-migration legacy dump — do not use it.)
+- `migrations/` — D1 schema, applied with `wrangler d1 migrations apply`. Tables: `raw_mails`, `code_mails` (+ `category`), `users`, `api_keys`, `grants`.
 
 ## Commands
 
