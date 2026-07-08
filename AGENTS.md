@@ -42,7 +42,7 @@ pnpm run dev
 
 ## Architecture Constraints
 
-- **Promotional filter runs before LLM.** `isPromotionalEmail()` checks `List-Unsubscribe`, `List-ID`, `Precedence: bulk/list`, and known ESP X-headers. If matched, raw email is still saved to `raw_mails` but LLM is skipped.
+- **Promotional filter runs before LLM.** `isPromotionalEmail()` treats `List-ID`/`List-Post`, `Precedence: bulk/list`, and known ESP campaign X-headers as unconditional bulk signals. `List-Unsubscribe` alone is a weak signal: transactional-looking subjects (code/verify/OTP/sign-in/reset/验证码 …) are exempted, because Gmail/Yahoo bulk-sender rules force senders like Netflix/SES to add it to verification mail too. If matched, raw email is still saved to `raw_mails` but LLM is skipped.
 - **Two DB tables, strict separation.** Every email → `raw_mails`. Only emails with extracted codes/links → `code_mails`. Never skip `raw_mails` insert.
 - **`visibleMails()` in `src/services/mail.ts` is the only permission layer.** REST routes and MCP tools must query mails through it — never add a second filter path. Grants are enforced in SQL (GLOB address pattern + category allowlist).
 - **Sensitive categories are default-deny.** `password_reset`, `account_security` require `allow_sensitive = 1` on the grant; `legacy` (pre-v2 mails) is always admin-only. Raw email bodies (`raw`/`textBody`/`htmlBody`) are admin-only on every interface.

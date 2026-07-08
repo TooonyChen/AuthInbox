@@ -108,8 +108,14 @@ export function stripHtmlTags(text: string): string {
     .trim();
 }
 
+// 主题看起来像验证码/事务性邮件 (verification, OTP, sign-in, reset, 验证码…)。
+// 只用来豁免 List-Unsubscribe 这一条弱信号, 不影响下面强信号的判定。
+const TRANSACTIONAL_SUBJECT_RE =
+  /\b(codes?|otp|2fa|mfa|pin|passcodes?|passwords?|verif\w*|confirm\w*|activat\w*|authenticat\w*|one[- ]?time|single[- ]?use|magic link|sign[- ]?in|log[- ]?in|reset)\b|验证|驗證|校验|校驗|认证|認證|登录|登錄|登入|一次性|动态密码|動態密碼|認証|ワンタイム|パスワード|인증|확인/i;
+
 export function isPromotionalEmail(headers: Headers, rawEmail: string): boolean {
-  if (headers.get("List-Unsubscribe") || headers.get("List-ID") || headers.get("List-Post")) {
+  // 强信号: 真正的邮件列表 / 群发
+  if (headers.get("List-ID") || headers.get("List-Post")) {
     return true;
   }
 
@@ -118,6 +124,7 @@ export function isPromotionalEmail(headers: Headers, rawEmail: string): boolean 
     return true;
   }
 
+  // 强信号: 营销平台的 campaign 头
   const rawHeaders = rawEmail.slice(0, rawEmail.search(/\r?\n\r?\n/) + 1 || 4000);
   if (
     /^X-Campaign(-ID)?:/im.test(rawHeaders) ||
@@ -128,6 +135,14 @@ export function isPromotionalEmail(headers: Headers, rawEmail: string): boolean 
     /^X-Marketo-/im.test(rawHeaders)
   ) {
     return true;
+  }
+
+  // 弱信号: List-Unsubscribe 单独出现不足以定罪 —— Gmail/Yahoo 2024 起的
+  // bulk sender 规则迫使大发件方 (Netflix/SES 等) 给验证码等事务邮件也带上它。
+  // 主题像事务邮件时豁免, 放行给 LLM (真广告在 prompt 里仍会被判 codeExist=0)。
+  if (headers.get("List-Unsubscribe")) {
+    const subject = decodeMimeHeader(headers.get("Subject")) ?? "";
+    return !TRANSACTIONAL_SUBJECT_RE.test(subject);
   }
 
   return false;

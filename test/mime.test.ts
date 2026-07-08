@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { decodeMimeHeader, decodeQuotedPrintable, extractMailBodies } from "../src/services/mime";
+import {
+  decodeMimeHeader,
+  decodeQuotedPrintable,
+  extractMailBodies,
+  isPromotionalEmail,
+} from "../src/services/mime";
 
 describe("mime decoding", () => {
   it("decodes UTF-8 base64 body parts as Unicode text", () => {
@@ -40,5 +45,50 @@ describe("mime decoding", () => {
 
   it("decodes RFC 2047 encoded subject headers", () => {
     expect(decodeMimeHeader("=?UTF-8?B?6aqM6K+B56CB?=")).toBe("验证码");
+  });
+});
+
+describe("isPromotionalEmail", () => {
+  it("does not flag transactional mail that carries List-Unsubscribe (Gmail/Yahoo bulk sender rules)", () => {
+    const headers = new Headers({
+      "List-Unsubscribe": "<mailto:x@unsubscribe.netflix.com>",
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      Subject: "Your Netflix temporary access code",
+    });
+    expect(isPromotionalEmail(headers, "Subject: x\r\n\r\nbody")).toBe(false);
+  });
+
+  it("exempts RFC 2047 encoded CJK verification subjects", () => {
+    const headers = new Headers({
+      "List-Unsubscribe": "<mailto:x@example.com>",
+      Subject: "=?UTF-8?B?6aqM6K+B56CB?=", // 验证码
+    });
+    expect(isPromotionalEmail(headers, "Subject: x\r\n\r\nbody")).toBe(false);
+  });
+
+  it("still flags List-Unsubscribe mail with a promotional subject", () => {
+    const headers = new Headers({
+      "List-Unsubscribe": "<mailto:x@example.com>",
+      Subject: "Summer sale: 50% off everything this weekend!",
+    });
+    expect(isPromotionalEmail(headers, "Subject: x\r\n\r\nbody")).toBe(true);
+  });
+
+  it("keeps strong signals unconditional even when the subject looks transactional", () => {
+    const listMail = new Headers({ "List-ID": "<dev.lists.example.com>", Subject: "your code" });
+    expect(isPromotionalEmail(listMail, "Subject: x\r\n\r\nbody")).toBe(true);
+
+    const bulkMail = new Headers({ Precedence: "bulk", Subject: "your verification code" });
+    expect(isPromotionalEmail(bulkMail, "Subject: x\r\n\r\nbody")).toBe(true);
+
+    const campaignMail = new Headers({ Subject: "your login code" });
+    expect(
+      isPromotionalEmail(campaignMail, "X-Campaign-ID: 42\r\nSubject: x\r\n\r\nbody"),
+    ).toBe(true);
+  });
+
+  it("keeps plain mail without any bulk signal non-promotional", () => {
+    const headers = new Headers({ Subject: "Hello" });
+    expect(isPromotionalEmail(headers, "Subject: Hello\r\n\r\nbody")).toBe(false);
   });
 });
