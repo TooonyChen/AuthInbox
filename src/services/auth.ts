@@ -91,6 +91,15 @@ export function generateApiKey(): string {
   return `aik_${hex}`;
 }
 
+// OAuth 用: token props 里只存 userId, 每次请求回表查, 删号即时失效
+export async function findUserById(db: D1Database, id: number): Promise<AuthedUser | null> {
+  const row = await db
+    .prepare("SELECT id, username, role FROM users WHERE id = ? LIMIT 1")
+    .bind(id)
+    .first<{ id: number; username: string; role: Role }>();
+  return row ? { id: row.id, username: row.username, role: row.role } : null;
+}
+
 export async function findUserByApiKey(db: D1Database, rawKey: string): Promise<AuthedUser | null> {
   if (!rawKey.startsWith("aik_")) return null;
   const keyHash = await sha256Hex(rawKey);

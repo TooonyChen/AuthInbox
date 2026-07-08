@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth";
 import mailRoutes from "./routes/mails";
 import adminRoutes from "./routes/admin";
 import keyRoutes from "./routes/keys";
+import oauthRoutes from "./routes/oauth";
 import mcpApp from "./mcp/server";
 
 const app = new Hono<AppEnv>();
@@ -13,8 +14,11 @@ const app = new Hono<AppEnv>();
 // /api/auth/* 开放 (login/setup 本身不能要求登录)
 // /api/* 其余全部要求 session
 // /api/admin/* 额外要求 admin
-// /mcp 走 API key
+// /mcp 走 API key (aik_); OAuth token 的 /mcp 在 index.ts 由 OAuthProvider 校验后进 mcpOAuthHandler
+// /oauth/authorize 自己管 session (没登录要跳登录页而不是 401)
 app.route("/api/auth", authRoutes);
+
+app.route("/oauth", oauthRoutes);
 
 app.use("/api/mails/*", sessionAuth);
 app.use("/api/mails", sessionAuth);

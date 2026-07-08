@@ -41,7 +41,7 @@ flowchart LR
 - **广告过滤**：通过邮件头（`List-Unsubscribe`、`Precedence: bulk` 等）识别并跳过营销邮件，不调用 AI，节省 token。
 - **AI 验证码提取与分类**：支持任意 OpenAI 兼容 / Anthropic 提供商，提取验证码、链接和组织名称，并给每封邮件打上分类标签（`login_code` / `registration` / `password_reset` / `account_security` / `payment` / `other`）。
 - **多用户权限管理**：admin 创建用户，按地址 pattern + 分类授权。敏感分类（改密码、账户安全警告）对普通用户默认拒绝，邮件原文仅 admin 可见 —— 权限在 SQL 查询层强制执行，REST 和 MCP 共用同一套过滤。
-- **远程 MCP Server**：每个用户可自助签发 API key，让 AI agent（Claude Code、Cursor 等）通过 Streamable HTTP 接入。`wait_for_code` 工具可阻塞等待新验证码送达，适合自动注册流程。
+- **远程 MCP Server**：claude.ai 可通过内置 OAuth（动态客户端注册 + PKCE）作为远程连接器直连；支持自定义 header 的客户端（Claude Code、Cursor 等）也可自助签发 API key 通过 Streamable HTTP 接入。`wait_for_code` 工具可阻塞等待新验证码送达，适合自动注册流程。
 - **现代化仪表盘**：React 18 + shadcn/ui 界面，账号登录、带分类徽章的邮件列表、详情面板、API key 管理，以及 admin 专属的用户/授权管理页。
 - **安全 HTML 预览**：邮件 HTML 经 DOMPurify 净化后在沙箱 iframe 中渲染（仅 admin）。
 - **一键复制**：验证码和链接均有复制按钮，复制后有 Toast 提示。
@@ -83,6 +83,8 @@ flowchart LR
 
    复制 `database_id`，下一步会用到。数据库表由仓库里的 `migrations/` 管理，部署 workflow 会先执行 D1 migrations。
 
+   *（可选 —— 仅当你要把 claude.ai 作为远程 MCP 连接器接入时）* 再进入 `Storage & Databases` → `KV` → `Create a namespace`，名称填 `OAUTH_KV`，复制它的 namespace ID。不创建则 OAuth 关闭，MCP Server 只支持 API key 接入。
+
 2. **Fork 并部署**
 
    [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
@@ -90,7 +92,7 @@ flowchart LR
    在你 Fork 的仓库中，进入 `Settings` → `Secrets and variables` → `Actions`，添加以下 Secrets：
    - `CLOUDFLARE_ACCOUNT_ID`
    - `CLOUDFLARE_API_TOKEN`
-   - `TOML` — 使用[不带注释的模板](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear)，填入 D1 `database_id` 和 AI 配置，避免解析报错。
+   - `TOML` — 使用[不带注释的模板](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear)，填入 D1 `database_id` 和 AI 配置（如果创建了 `OAUTH_KV` 也填上它的 namespace id），避免解析报错。
 
    然后进入 `Actions` → `Deploy Auth Inbox to Cloudflare Workers` → `Run workflow`。
 
@@ -120,6 +122,14 @@ flowchart LR
 
    复制输出中的 `database_id`。
 
+   *（可选 —— 仅当你要接入 claude.ai 远程连接器时）* 再创建 OAuth KV：
+
+   ```bash
+   pnpm wrangler kv namespace create OAUTH_KV
+   ```
+
+   不创建则 OAuth 关闭，MCP Server 只支持 API key 接入。
+
 3. **配置**
 
    ```bash
@@ -142,6 +152,11 @@ flowchart LR
    binding       = "DB"
    database_name = "inbox-d1"
    database_id   = "<你的数据库ID>"
+
+   # 可选 —— 仅当接入 claude.ai 远程连接器 (OAuth) 时:
+   # [[kv_namespaces]]
+   # binding = "OAUTH_KV"   # 绑定名必须是 OAUTH_KV
+   # id      = "<你的 KV namespace ID>"
    ```
 
    `FrontEndAdminID` / `FrontEndAdminPassword` 已不再使用。用户存储在 D1 的 `users` 表里；首次部署后通过登录页创建第一个 admin。
@@ -229,7 +244,13 @@ flowchart LR
 
 ## MCP Server（AI Agent 接入）🤖
 
-Auth Inbox 在 `https://<你的 Worker 域名>/mcp` 暴露一个远程 MCP Server（Streamable HTTP）。
+Auth Inbox 在 `https://<你的 Worker 域名>/mcp` 暴露一个远程 MCP Server（Streamable HTTP）。两种认证方式：
+
+**方式 A — OAuth（claude.ai 远程连接器，以及任何支持 OAuth 的 MCP 客户端）**
+
+需要可选的 `OAUTH_KV` 绑定（见安装章节）。打开 claude.ai → `Settings` → `Connectors` → `Add custom connector`，填入 `https://your.domain/mcp` 即可。Claude 会自动发现 OAuth 服务（动态客户端注册 + PKCE），跳转到 Auth Inbox 的登录/授权页，以你的账号身份连接。token 继承你的角色和授权；在仪表盘删除用户会立即使其 OAuth 访问失效。
+
+**方式 B — API key（Claude Code、Cursor、脚本等）**
 
 1. 登录仪表盘 → **API Keys** → 创建 key（`aik_…`，只显示一次）。key 继承创建者的角色和授权。
 2. 在 Claude Code 中接入：
@@ -239,7 +260,7 @@ Auth Inbox 在 `https://<你的 Worker 域名>/mcp` 暴露一个远程 MCP Serve
      --header "Authorization: Bearer aik_xxx"
    ```
 
-3. 可用工具：
+**可用工具：**
 
    | 工具 | 用途 |
    |---|---|
@@ -248,9 +269,7 @@ Auth Inbox 在 `https://<你的 Worker 域名>/mcp` 暴露一个远程 MCP Serve
    | `get_latest_code` | 获取某地址/服务最新的一条验证码 |
    | `wait_for_code` | 阻塞等待（最长 55 秒）**新**验证码送达 —— 自动注册/登录流程的关键工具 |
 
-所有工具走与 web API 相同的权限过滤，拿着 user key 的 agent 永远读不到敏感分类和邮件原文。
-
-> claude.ai 的远程连接器要求 OAuth，目前尚未实现 —— 见 TODO。
+所有工具走与 web API 相同的权限过滤，拿着 user key 或 OAuth token 的 agent 永远读不到敏感分类和邮件原文。
 
 ---
 
@@ -300,7 +319,7 @@ v2 是破坏性变更：
 - [x] 原始邮件查看 + 沙箱 HTML 预览
 - [x] 多用户支持（admin/user 角色 + 按地址、按分类授权）
 - [x] 远程 MCP Server（AI Agent 接入）
-- [ ] `/mcp` 支持 OAuth（接入 claude.ai 远程连接器）
+- [x] `/mcp` 支持 OAuth（接入 claude.ai 远程连接器）
 - [ ] 正则表达式提取（无 AI 选项）
 - [ ] 更多通知方式（Slack、Webhook 等）
 - [ ] 发送邮件功能

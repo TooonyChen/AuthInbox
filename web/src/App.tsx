@@ -11,6 +11,17 @@ import { cn } from '@/lib/utils';
 
 type View = 'inbox' | 'keys' | 'admin';
 
+// OAuth 流程: /oauth/authorize 发现没登录会 302 到 /?returnTo=<原授权 URL>。
+// 登录成功后跳回去 (同站导航, Strict cookie 会带上)。只认站内的 authorize 路径。
+function consumeReturnTo(): boolean {
+	const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+	if (returnTo?.startsWith('/oauth/authorize?')) {
+		window.location.replace(returnTo);
+		return true;
+	}
+	return false;
+}
+
 function App(): JSX.Element {
 	const [user, setUser] = useState<User | null>(null);
 	const [isChecking, setIsChecking] = useState(true);
@@ -18,7 +29,10 @@ function App(): JSX.Element {
 
 	useEffect(() => {
 		getJson<{ user: User }>('/api/auth/me')
-			.then((payload) => setUser(payload.user))
+			.then((payload) => {
+				if (consumeReturnTo()) return;
+				setUser(payload.user);
+			})
 			.catch((error: unknown) => {
 				if (!(error instanceof ApiError && error.status === 401)) {
 					toast.error('Unable to reach the server');
@@ -51,7 +65,12 @@ function App(): JSX.Element {
 		return (
 			<>
 				<Toaster theme="dark" position="bottom-right" closeButton />
-				<LoginPage onLogin={setUser} />
+				<LoginPage
+					onLogin={(loggedInUser) => {
+						if (consumeReturnTo()) return;
+						setUser(loggedInUser);
+					}}
+				/>
 			</>
 		);
 	}

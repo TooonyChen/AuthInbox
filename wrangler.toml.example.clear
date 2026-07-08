@@ -28,6 +28,12 @@ binding = "DB"
 database_name = "inbox-d1"
 database_id = "********-****-****-****-************"
 
+# Optional: OAuth for claude.ai remote connectors. Omit to disable OAuth (aik_ keys only).
+# Binding name must be OAUTH_KV. Create: npx wrangler kv namespace create OAUTH_KV
+# [[kv_namespaces]]
+# binding = "OAUTH_KV"
+# id = "********************************"
+
 # Required secret (not a [vars] entry): set JWT_SECRET as a Cloudflare Secret after deploy.
 #   pnpm exec wrangler secret put JWT_SECRET
 # 必需的 secret（不要写进 [vars]）：部署后设置 JWT_SECRET。

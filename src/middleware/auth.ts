@@ -1,7 +1,7 @@
 import { getCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
-import type { AppEnv } from "../types";
-import { findUserByApiKey, verifySession } from "../services/auth";
+import type { AppEnv, OAuthProps } from "../types";
+import { findUserByApiKey, findUserById, verifySession } from "../services/auth";
 
 export const SESSION_COOKIE = "authinbox_session";
 
@@ -21,6 +21,18 @@ export const requireAdmin = createMiddleware<AppEnv>(async (c, next) => {
   if (c.get("user")?.role !== "admin") {
     return c.json({ error: "Forbidden" }, 403);
   }
+  await next();
+});
+
+// MCP over OAuth (claude.ai 远程连接器): OAuthProvider 已校验过 access token,
+// 解密后的 props 挂在 executionCtx 上。这里只做 userId → 用户实体的回表。
+export const oauthPropsAuth = createMiddleware<AppEnv>(async (c, next) => {
+  const props = (c.executionCtx as ExecutionContext & { props?: OAuthProps }).props;
+  const userId = Number(props?.userId);
+  const user = Number.isInteger(userId) ? await findUserById(c.env.DB, userId) : null;
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+  c.set("user", user);
   await next();
 });
 

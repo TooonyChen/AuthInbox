@@ -41,7 +41,7 @@ flowchart LR
 - **Promotional Filter**: Detects and skips bulk/marketing emails via headers (`List-Unsubscribe`, `Precedence: bulk`, etc.) before calling the AI — saves tokens.
 - **AI Code Extraction & Classification**: Any OpenAI-compatible or Anthropic provider extracts verification codes, links, and organization names, and tags each mail with a category (`login_code`, `registration`, `password_reset`, `account_security`, `payment`, `other`).
 - **Multi-User Access Control**: Admin creates users and grants them access per address pattern and per category. Sensitive categories (password resets, account security alerts) are denied to regular users by default and raw email bodies are admin-only — enforced at the SQL query layer, for REST and MCP alike.
-- **Remote MCP Server**: Every user can self-issue API keys and connect AI agents (Claude Code, Cursor, …) over Streamable HTTP. Includes a `wait_for_code` tool that blocks until a fresh OTP arrives — perfect for automated sign-up flows.
+- **Remote MCP Server**: Connect claude.ai as a remote connector via built-in OAuth (dynamic client registration + PKCE), or self-issue API keys for header-based clients (Claude Code, Cursor, …) over Streamable HTTP. Includes a `wait_for_code` tool that blocks until a fresh OTP arrives — perfect for automated sign-up flows.
 - **Modern Dashboard**: React 18 + shadcn/ui interface with account login, mail list with category badges, detail panel, API key management, and an admin page for users and grants.
 - **Safe HTML Preview**: Email HTML is sanitized with DOMPurify and rendered in a sandboxed iframe (admin only).
 - **One-click Copy**: Verification codes and links have copy buttons with toast confirmation.
@@ -83,6 +83,8 @@ flowchart LR
 
    Copy the `database_id` for the next step. Tables are managed by the `migrations/` directory in this repo — the deploy workflow applies D1 migrations automatically before deploying.
 
+   *(Optional — only if you want to connect claude.ai as a remote MCP connector)* also go to `Storage & Databases` → `KV` → `Create a namespace`, name it `OAUTH_KV`, and copy its namespace ID. Without it, OAuth is disabled and the MCP server works with API keys only.
+
 2. **Fork & Deploy**
 
    [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
@@ -90,7 +92,7 @@ flowchart LR
    In your forked repository, go to `Settings` → `Secrets and variables` → `Actions` and add:
    - `CLOUDFLARE_ACCOUNT_ID`
    - `CLOUDFLARE_API_TOKEN`
-   - `TOML` — use the [comment-free template](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear), fill in your D1 `database_id` and AI config, to avoid parse errors.
+   - `TOML` — use the [comment-free template](https://github.com/TooonyChen/AuthInbox/blob/main/wrangler.toml.example.clear), fill in your D1 `database_id` and AI config (plus the `OAUTH_KV` namespace id if you created one), to avoid parse errors.
 
    Then go to `Actions` → `Deploy Auth Inbox to Cloudflare Workers` → `Run workflow`.
 
@@ -120,6 +122,14 @@ flowchart LR
 
    Copy the `database_id` from the output.
 
+   *(Optional — only for claude.ai remote connectors)* also create the OAuth KV namespace:
+
+   ```bash
+   pnpm wrangler kv namespace create OAUTH_KV
+   ```
+
+   Without it, OAuth is disabled and the MCP server works with API keys only.
+
 3. **Configure**
 
    ```bash
@@ -142,6 +152,11 @@ flowchart LR
    binding       = "DB"
    database_name = "inbox-d1"
    database_id   = "<your-database-id>"
+
+   # Optional — only for claude.ai remote connectors (OAuth):
+   # [[kv_namespaces]]
+   # binding = "OAUTH_KV"   # must be named OAUTH_KV
+   # id      = "<your-kv-namespace-id>"
    ```
 
    **`AI_API_FORMAT`** is one of:
@@ -227,7 +242,13 @@ Manage users and grants in the dashboard's **Users & Access** page (admin only).
 
 ## MCP Server (for AI Agents) 🤖
 
-Auth Inbox exposes a remote MCP server at `https://<your-worker-domain>/mcp` (Streamable HTTP).
+Auth Inbox exposes a remote MCP server at `https://<your-worker-domain>/mcp` (Streamable HTTP). Two ways to authenticate:
+
+**Option A — OAuth (claude.ai remote connectors, and any OAuth-capable MCP client)**
+
+Requires the optional `OAUTH_KV` binding (see installation). Go to claude.ai → `Settings` → `Connectors` → `Add custom connector` and enter `https://your.domain/mcp`. Claude discovers the OAuth server automatically (dynamic client registration + PKCE), sends you to the Auth Inbox login/consent page, and connects as your account. Tokens inherit your role and grants; revoking a user in the dashboard kills their OAuth access immediately.
+
+**Option B — API key (Claude Code, Cursor, scripts, …)**
 
 1. Log in to the dashboard → **API Keys** → create a key (`aik_…`, shown only once). Keys inherit your role and grants.
 2. Connect from Claude Code:
@@ -237,7 +258,7 @@ Auth Inbox exposes a remote MCP server at `https://<your-worker-domain>/mcp` (St
      --header "Authorization: Bearer aik_xxx"
    ```
 
-3. Available tools:
+**Available tools:**
 
    | Tool | Purpose |
    |---|---|
@@ -246,9 +267,7 @@ Auth Inbox exposes a remote MCP server at `https://<your-worker-domain>/mcp` (St
    | `get_latest_code` | Get the single most recent code for an address/service |
    | `wait_for_code` | Block (up to 55s) until a **new** code arrives — for automated sign-up/login flows |
 
-All tools go through the same permission filter as the web API, so an agent holding a user's key can never read sensitive or raw content.
-
-> claude.ai remote connectors require OAuth, which is not implemented yet — see TODO.
+All tools go through the same permission filter as the web API, so an agent holding a user's key or OAuth token can never read sensitive or raw content.
 
 ---
 
@@ -298,7 +317,7 @@ v2 is a breaking change:
 - [x] Raw email view + sandboxed HTML preview
 - [x] Multi-user support (admin/user roles + per-address, per-category grants)
 - [x] Remote MCP server for AI agents
-- [ ] OAuth on `/mcp` (for claude.ai remote connectors)
+- [x] OAuth on `/mcp` (for claude.ai remote connectors)
 - [ ] Regex extraction (no-AI option)
 - [ ] More notification channels (Slack, webhook, …)
 - [ ] Email sending

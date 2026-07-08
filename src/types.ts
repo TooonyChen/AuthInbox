@@ -14,6 +14,12 @@ export interface Env {
   // Auth
   JWT_SECRET: string; // wrangler secret put JWT_SECRET
 
+  // OAuth 是可选功能 (claude.ai 远程连接器用)。绑定了 OAUTH_KV 才启用;
+  // 不绑定则 /mcp 只认 aik_ API key, /oauth/* 返回 404。绑定名是库的硬性要求。
+  OAUTH_KV?: KVNamespace;
+  // 由 OAuthProvider 在运行时注入 defaultHandler 的 env, 用于 /oauth/authorize
+  OAUTH_PROVIDER?: import("@cloudflare/workers-oauth-provider").OAuthHelpers;
+
   // Bark push
   UseBark: string;
   barkTokens: string;
@@ -38,6 +44,12 @@ export interface AuthedUser {
   id: number;
   username: string;
   role: Role;
+}
+
+// OAuth grant 时加密进 token 的 props。只存 userId,
+// 每次请求从 D1 重新查用户, 保证删号/降权即时生效。
+export interface OAuthProps {
+  userId: number;
 }
 
 // Hono generic: c.env 是 Env, c.get('user') 是 AuthedUser

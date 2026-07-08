@@ -1,18 +1,20 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { StreamableHTTPTransport } from "@hono/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { AppEnv, AuthedUser } from "../types";
+import type { AppEnv, AuthedUser, Env } from "../types";
+import { oauthPropsAuth } from "../middleware/auth";
 import { visibleAddresses, visibleMails } from "../services/mail";
 
 /*
  * Remote MCP server, Streamable HTTP, 无状态 (不需要 Durable Objects)。
- * 认证在路由层由 apiKeyAuth 完成, 这里拿到的 user 已经是校验过的身份。
+ * 两条认证路径, handler 完全共享:
+ *   1. API key (apiKeyAuth): 支持自定义 header 的客户端, 如 Claude Code:
+ *      claude mcp add --transport http authinbox https://your.domain/mcp \
+ *        --header "Authorization: Bearer aik_xxx"
+ *   2. OAuth (oauthPropsAuth): claude.ai 远程连接器。OAuthProvider (src/index.ts)
+ *      校验 access token 后把 props 放到 executionCtx, 中间件回表得到 user。
  * 所有 tool 都走 services/mail.ts, 权限过滤和 REST 完全同源。
- *
- * 客户端接入 (支持自定义 header 的客户端, 如 Claude Code):
- *   claude mcp add --transport http authinbox https://your.domain/mcp \
- *     --header "Authorization: Bearer aik_xxx"
  */
 
 function textResult(data: unknown) {
@@ -117,14 +119,24 @@ function buildServer(db: D1Database, user: AuthedUser): McpServer {
   return server;
 }
 
-// 挂载: app.route('/mcp', mcpApp), 外层已套 apiKeyAuth
-const mcpApp = new Hono<AppEnv>();
-
-mcpApp.all("/", async (c) => {
+async function handleMcpRequest(c: Context<AppEnv>) {
   const server = buildServer(c.env.DB, c.get("user"));
   const transport = new StreamableHTTPTransport();
   await server.connect(transport);
   return transport.handleRequest(c);
-});
+}
+
+// 挂载: app.route('/mcp', mcpApp), 外层已套 apiKeyAuth
+const mcpApp = new Hono<AppEnv>();
+mcpApp.all("/", handleMcpRequest);
 
 export default mcpApp;
+
+// OAuthProvider 的 apiHandler: 只有带合法 OAuth access token 的 /mcp 请求会到这里
+const oauthMcpApp = new Hono<AppEnv>();
+oauthMcpApp.use("*", oauthPropsAuth);
+oauthMcpApp.all("/mcp", handleMcpRequest);
+
+export const mcpOAuthHandler = {
+  fetch: (request: Request, env: Env, ctx: ExecutionContext) => oauthMcpApp.fetch(request, env, ctx),
+};

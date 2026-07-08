@@ -87,6 +87,19 @@ database_id = "********-****-****-****-************"
 # replace with your database id
 # 请你替换为你的数据库 ID
 
+# --- Optional: OAuth for claude.ai remote connectors ---
+# Only needed if you want to connect claude.ai as a remote MCP connector.
+# Without this binding, OAuth is disabled and /mcp works with aik_ API keys only.
+# The binding name MUST be OAUTH_KV — required by @cloudflare/workers-oauth-provider.
+# To enable: run `npx wrangler kv namespace create OAUTH_KV`, uncomment the three
+# lines below, and replace the id with the one the command prints.
+# 可选功能: 仅当你要把 claude.ai 作为远程连接器接入时才需要。
+# 不绑定则 OAuth 关闭, /mcp 只认 aik_ API key。绑定名必须叫 OAUTH_KV (库的硬性要求)。
+# 启用方法: 用上面的命令创建 KV, 取消下面三行的注释, 把 id 换成命令输出的值。
+# [[kv_namespaces]]
+# binding = "OAUTH_KV"
+# id = "REPLACE_WITH_YOUR_OAUTH_KV_NAMESPACE_ID"
+
 # --- Required secret (not a [vars] entry) ---
 # JWT_SECRET signs login session tokens. Set it as a Cloudflare Secret after deploy:
 #   pnpm exec wrangler secret put JWT_SECRET

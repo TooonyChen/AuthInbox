@@ -14,6 +14,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply inbox-d1 --remote"
   },
   "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.8.1",
     "@hono/mcp": "^0.1.4",
     "@modelcontextprotocol/sdk": "^1.17.0",
     "hono": "^4.9.0",
