@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
-import { Copy, Inbox, RefreshCw, Search } from 'lucide-react';
+import { ArrowLeft, Copy, Inbox, RefreshCw, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { getJson, type MailDetail, type MailListResponse, type User } from '@/api';
 import { CategoryBadge } from '@/components/CategoryBadge';
@@ -112,6 +112,8 @@ export function InboxPage({ user }: { user: User }): JSX.Element {
 	const [isListLoading, setIsListLoading] = useState(true);
 	const [listError, setListError] = useState<string | null>(null);
 	const [selectedMailId, setSelectedMailId] = useState<number | null>(null);
+	// 移动端 (<lg) 主-从视图: 点列表行全屏切到详情, 返回键切回列表。桌面端两栏并排, 此状态无效果。
+	const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
 
 	const [detail, setDetail] = useState<MailDetail | null>(null);
 	const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -170,7 +172,7 @@ export function InboxPage({ user }: { user: User }): JSX.Element {
 
 	return (
 		<div className="grid gap-6 lg:grid-cols-[1.15fr_1fr] [&>*]:min-w-0">
-			<Card className="p-6">
+			<Card className={cn('p-6', isMobileDetailOpen && 'hidden lg:block')}>
 				<CardHeader className="p-0 pb-4">
 					<CardTitle className="flex items-center gap-2">
 						<Inbox className="h-4 w-4 text-primary" />
@@ -256,7 +258,13 @@ export function InboxPage({ user }: { user: User }): JSX.Element {
 													'cursor-pointer bg-transparent transition-colors hover:bg-[#1a1a1a]',
 													active && 'bg-[#252525]',
 												)}
-												onClick={() => setSelectedMailId(item.id)}
+												onClick={() => {
+													setSelectedMailId(item.id);
+													setIsMobileDetailOpen(true);
+													if (!window.matchMedia('(min-width: 1024px)').matches) {
+														window.scrollTo({ top: 0 });
+													}
+												}}
 											>
 												<td className="max-w-[150px] px-3 py-3">
 													<div className="truncate font-medium text-slate-100">{item.fromOrg || item.fromAddr || '-'}</div>
@@ -294,9 +302,20 @@ export function InboxPage({ user }: { user: User }): JSX.Element {
 				</div>
 			</Card>
 
-			<Card className="p-6">
+			<Card className={cn('p-6', !isMobileDetailOpen && 'hidden lg:block')}>
 				<CardHeader className="p-0 pb-4">
-					<CardTitle>Mail Detail</CardTitle>
+					<div className="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="icon"
+							className="-ml-2 h-8 w-8 lg:hidden"
+							onClick={() => setIsMobileDetailOpen(false)}
+							title="Back to list"
+						>
+							<ArrowLeft className="h-4 w-4" />
+						</Button>
+						<CardTitle>Mail Detail</CardTitle>
+					</div>
 				</CardHeader>
 
 				{detailError ? (
@@ -315,8 +334,13 @@ export function InboxPage({ user }: { user: User }): JSX.Element {
 					</div>
 				) : detail ? (
 					<>
-						<div className="mb-4 grid gap-2 rounded-lg border border-border/80 bg-[#111111] p-3 text-sm text-slate-300">
-							<div><span className="text-muted-foreground">From:</span> {detail.fromOrg || detail.fromAddr || '-'}</div>
+						<div className="mb-4 grid gap-2 rounded-lg border border-border/80 bg-[#111111] p-3 text-sm text-slate-300 [&>*]:min-w-0">
+							<div className="break-words">
+								<span className="text-muted-foreground">From:</span> {detail.fromOrg || detail.fromAddr || '-'}
+								{detail.fromOrg && detail.fromAddr ? (
+									<span className="ml-1 break-all font-mono text-xs text-muted-foreground">&lt;{detail.fromAddr}&gt;</span>
+								) : null}
+							</div>
 							<div>
 								<span className="text-muted-foreground">To:</span>{' '}
 								<span className="font-mono text-xs">{detail.toAddr || '-'}</span>
