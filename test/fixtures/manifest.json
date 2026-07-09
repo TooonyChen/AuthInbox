@@ -1,0 +1,78 @@
+{
+  "$comment": "真实邮件回归测试清单。.eml 文件含真实地址/令牌, 已 gitignore — 用 `pnpm run fixtures:pull` 从你自己的 D1 拉取。promotional: isPromotionalEmail 的期望结果; contentIncludes: LLM 输入 (emailContent) 必须包含的片段; eval: LLM 分类期望, advisory=true 只警告不判失败。",
+  "fixtures": [
+    {
+      "name": "cmhk-registration",
+      "rawMailId": 2650,
+      "note": "multipart + 中文, 明文数字验证码",
+      "promotional": false,
+      "contentIncludes": ["668445"],
+      "eval": { "codeExist": 1, "categories": ["registration"], "codeContains": "668445" }
+    },
+    {
+      "name": "netflix-forwarded-html",
+      "rawMailId": 2651,
+      "note": "Yandex 手动转发: 单一 text/html 裸片段, 只有按钮链接 (stripHtmlTags 保留 href 的回归用例)",
+      "promotional": false,
+      "contentIncludes": ["netflix.com/account/travel/verify"],
+      "eval": { "codeExist": 1, "categories": ["login_code"], "codeContains": "travel/verify" }
+    },
+    {
+      "name": "bandwagon-device-verification",
+      "rawMailId": 2502,
+      "note": "text/plain 明文数字码",
+      "promotional": false,
+      "contentIncludes": ["596352"],
+      "eval": { "codeExist": 1, "categories": ["login_code", "account_security"], "codeContains": "596352" }
+    },
+    {
+      "name": "18birdies-verify",
+      "rawMailId": 2453,
+      "note": "html-only 注册验证链接",
+      "promotional": false,
+      "contentIncludes": ["18birdies.com"],
+      "eval": { "codeExist": 1, "categories": ["registration"], "codeContains": "18birdies.com" }
+    },
+    {
+      "name": "subcard-password-reset",
+      "rawMailId": 2577,
+      "note": "改密码确认, RFC2047 编码主题",
+      "promotional": false,
+      "contentIncludes": ["subcard"],
+      "eval": { "codeExist": 1, "categories": ["password_reset", "account_security"] }
+    },
+    {
+      "name": "disney-new-login",
+      "rawMailId": 2552,
+      "note": "新设备登录提醒 (account_security)",
+      "promotional": false,
+      "contentIncludes": ["disneyplus.com"],
+      "eval": { "codeExist": 1, "categories": ["account_security", "login_code"], "advisory": true }
+    },
+    {
+      "name": "ubereats-promo",
+      "rawMailId": 2639,
+      "note": "促销: List-Unsubscribe + List-ID, 必须被头部过滤器拦下",
+      "promotional": true
+    },
+    {
+      "name": "trip-promo",
+      "rawMailId": 2647,
+      "note": "促销 (无 list 头, 会进 LLM): 期望 LLM 判无码",
+      "promotional": false,
+      "eval": { "codeExist": 0, "advisory": true }
+    },
+    {
+      "name": "linkedin-invitations",
+      "rawMailId": 2648,
+      "note": "社交通知: List-Unsubscribe + 非事务主题, 会被头部过滤器拦下",
+      "promotional": true
+    },
+    {
+      "name": "starbucks-promo",
+      "rawMailId": 2635,
+      "note": "促销, RFC2047 主题; List-Unsubscribe + 非事务主题, 会被头部过滤器拦下",
+      "promotional": true
+    }
+  ]
+}

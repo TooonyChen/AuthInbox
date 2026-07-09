@@ -11,6 +11,7 @@
 - `src/mcp/server.ts` — remote MCP server at `/mcp` (`@hono/mcp` Streamable HTTP): `list_addresses`, `list_codes`, `get_latest_code`, `wait_for_code`.
 - `web/` — React 18 + Vite + Tailwind + shadcn/ui frontend. Built to `web/dist`, served via Cloudflare `ASSETS` binding. Pages: Login (doubles as first-admin setup), Inbox, API Keys, Users & Access (admin).
 - `migrations/` — D1 schema, applied with `wrangler d1 migrations apply`. Tables: `raw_mails`, `code_mails` (+ `category`), `users`, `api_keys`, `grants`.
+- `test/` — `*.test.ts` unit tests (workers pool). `test/mail/*.mail.ts` real-mail regression suite (node env, `vitest.mail.config.mts`): `pipeline.mail.ts` asserts promo-filter verdicts and LLM-input content deterministically; `classify.mail.ts` runs the live LLM eval (`EVAL_LLM=1`). Fixtures come from your own D1 via `scripts/pull-fixtures.mjs` into gitignored `test/fixtures/*.eml`; expectations live in the committed `test/fixtures/manifest.json`.
 
 ## Commands
 
@@ -27,7 +28,10 @@ pnpm run db:migrate:remote       # apply D1 migrations to live D1
 pnpm run build:web               # vite build → web/dist
 pnpm run deploy                  # build:web + db:migrate:remote + wrangler deploy
 # Misc
-pnpm run test                    # vitest with @cloudflare/vitest-pool-workers
+pnpm run test                    # unit tests (vitest with @cloudflare/vitest-pool-workers)
+pnpm run fixtures:pull           # pull real-mail fixtures from remote D1 into test/fixtures/*.eml (gitignored)
+pnpm run test:mail               # deterministic pipeline regression on real-mail fixtures (no LLM, free)
+pnpm run test:eval               # LLM classification eval on fixtures (real provider calls; EVAL_RUNS=n, default 5)
 pnpm run cf-typegen              # regenerate Worker type bindings
 ```
 

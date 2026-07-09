@@ -178,3 +178,6 @@ wrangler.toml
 # local db exports — may contain real email data
 *-data.sql
 *-backup.sql
+
+# Real-mail test fixtures (pulled from your own D1, contain private data)
+test/fixtures/*.eml

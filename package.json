@@ -9,6 +9,9 @@
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "test": "vitest",
+    "test:mail": "vitest run --config vitest.mail.config.mts",
+    "test:eval": "EVAL_LLM=1 vitest run --config vitest.mail.config.mts",
+    "fixtures:pull": "node scripts/pull-fixtures.mjs",
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply inbox-d1 --local",
     "db:migrate:remote": "wrangler d1 migrations apply inbox-d1 --remote"

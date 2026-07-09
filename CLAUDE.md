@@ -13,7 +13,10 @@ pnpm run dev               # Worker backend :8787
 pnpm run dev:web           # React frontend :5173 (proxy /api → :8787)
 pnpm run db:migrate:local  # apply D1 migrations locally
 pnpm run deploy            # build:web + db:migrate:remote + wrangler deploy
-pnpm run test
+pnpm run test              # unit tests (workers pool)
+pnpm run fixtures:pull     # pull real mails from remote D1 → test/fixtures/*.eml (gitignored)
+pnpm run test:mail         # deterministic regression on real-mail fixtures (free, no LLM)
+pnpm run test:eval         # live LLM classification eval on fixtures (costs API calls)
 ```
 
 ## Architecture Boundaries — Never Violate

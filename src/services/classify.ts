@@ -15,7 +15,7 @@ export interface ExtractedMail {
   category?: MailCategory;
 }
 
-function extractJsonFromText(rawText: string): Record<string, unknown> | null {
+export function extractJsonFromText(rawText: string): Record<string, unknown> | null {
   let candidate = rawText.trim();
   const jsonMatch = candidate.match(/```json\s*([\s\S]*?)\s*```/);
   if (jsonMatch && jsonMatch[1]) {
@@ -33,7 +33,7 @@ function normaliseBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, "");
 }
 
-async function callProvider(config: ProviderConfig, prompt: string): Promise<string | null> {
+export async function callProvider(config: ProviderConfig, prompt: string): Promise<string | null> {
   const base = normaliseBaseUrl(config.baseUrl);
   let endpoint: string;
   let body: unknown;
@@ -111,7 +111,7 @@ async function callProvider(config: ProviderConfig, prompt: string): Promise<str
   return typeof text === "string" ? text : null;
 }
 
-function buildPrompt(rawEmail: string): string {
+export function buildPrompt(rawEmail: string): string {
   const { textBody, htmlBody } = extractMailBodies(rawEmail);
   const emailContent = textBody ?? (htmlBody ? stripHtmlTags(htmlBody) : rawEmail);
 
@@ -151,7 +151,7 @@ If there is no code, clickable link, or this is an advertisement email, return:
 `;
 }
 
-function coerceCategory(value: unknown): MailCategory {
+export function coerceCategory(value: unknown): MailCategory {
   if (typeof value === "string" && (MAIL_CATEGORIES as readonly string[]).includes(value)) {
     return value as MailCategory;
   }
