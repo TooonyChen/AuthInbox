@@ -4,6 +4,7 @@ import {
   decodeQuotedPrintable,
   extractMailBodies,
   isPromotionalEmail,
+  stripHtmlTags,
 } from "../src/services/mime";
 
 describe("mime decoding", () => {
@@ -90,5 +91,33 @@ describe("isPromotionalEmail", () => {
   it("keeps plain mail without any bulk signal non-promotional", () => {
     const headers = new Headers({ Subject: "Hello" });
     expect(isPromotionalEmail(headers, "Subject: Hello\r\n\r\nbody")).toBe(false);
+  });
+});
+
+describe("stripHtmlTags", () => {
+  it("preserves anchor hrefs so button-only mails keep their link", () => {
+    const html = '<p>Hi Thomas</p><a class="h5" href="https://www.netflix.com/verify?a=1&amp;b=2" style="x">Get Code</a>';
+    expect(stripHtmlTags(html)).toContain("Get Code [https://www.netflix.com/verify?a=1&b=2]");
+  });
+
+  it("drops non-http hrefs but keeps the label", () => {
+    expect(stripHtmlTags('<a href="mailto:x@y.com">contact us</a>')).toBe("contact us");
+  });
+});
+
+describe("extractMailBodies single-part html", () => {
+  it("treats a bare text/html fragment (no <html> wrapper) as the html body", () => {
+    const rawEmail = [
+      "Subject: code",
+      "Content-Type: text/html; charset=utf-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      Buffer.from('<div>Your code: <a href="https://x.com/v?t=1">Get Code</a></div>').toString("base64"),
+      "",
+    ].join("\r\n");
+
+    const bodies = extractMailBodies(rawEmail);
+    expect(bodies.htmlBody).toContain("https://x.com/v?t=1");
+    expect(bodies.textBody).toContain("Get Code [https://x.com/v?t=1]");
   });
 });

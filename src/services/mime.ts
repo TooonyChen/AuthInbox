@@ -100,12 +100,25 @@ export function decodeMimeHeader(value: string | null): string | null {
 }
 
 export function stripHtmlTags(text: string): string {
-  return text
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    text
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      // 保留链接: <a href="url">text</a> → "text [url]"。
+      // 验证码邮件常常只有一个按钮链接 (如 Netflix 的 Get Code), 剥掉 href 会让
+      // LLM 无码可提取。仅 html-only 邮件走到这里, 多部分邮件优先用 text/plain。
+      .replace(
+        /<a\b[^>]*?href\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi,
+        (_match, doubleQuoted, singleQuoted, inner) => {
+          const url = (doubleQuoted ?? singleQuoted ?? "").replace(/&amp;/gi, "&").trim();
+          const label = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          return /^https?:\/\//i.test(url) ? ` ${label} [${url}] ` : ` ${label} `;
+        },
+      )
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 // 主题看起来像验证码/事务性邮件 (verification, OTP, sign-in, reset, 验证码…)。
@@ -199,7 +212,13 @@ export function extractMailBodies(rawEmail: string): {
   const decodedBody = decodeBodyPart(topBody, encoding, getCharset(topContentType));
   const topMimeType = topContentType?.split(";")[0]?.trim().toLowerCase() ?? "";
   const htmlMatch = decodedBody.match(/<html[\s\S]*<\/html>/i) ?? decodedBody.match(/<body[\s\S]*<\/body>/i);
-  const htmlBody = htmlMatch ? htmlMatch[0].trim() : null;
+  // Content-Type 明确是 text/html 时整个正文就是 HTML, 即使没有 <html>/<body>
+  // 包裹 (Yandex 等客户端转发出的就是裸片段), 否则 Rendered 预览会拿不到内容。
+  const htmlBody = htmlMatch
+    ? htmlMatch[0].trim()
+    : topMimeType.includes("text/html") && decodedBody.trim()
+      ? decodedBody.trim()
+      : null;
 
   const decodedText = topMimeType.includes("text/html") ? stripHtmlTags(decodedBody) : decodedBody.trim();
   const textBody = decodedText ? decodedText : htmlBody ? stripHtmlTags(htmlBody) : null;
