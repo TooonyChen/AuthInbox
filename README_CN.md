@@ -23,6 +23,27 @@ flowchart LR
 
 ---
 
+## 截图 📸
+
+![收件箱：每封邮件自动分类，验证码一键复制](img/screenshot-inbox.png)
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="img/screenshot-rendered.png" alt="原始 HTML 经过净化后在沙箱 iframe 中渲染（仅 admin 可见）"><br><sub>原始 HTML 经过净化后在沙箱 iframe 中渲染（仅 admin 可见）</sub></td>
+    <td width="50%" valign="top"><img src="img/screenshot-admin.png" alt="用户与授权：按地址模式和邮件分类给每个用户授权"><br><sub>用户与授权：按地址模式和邮件分类给每个用户授权</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="img/screenshot-user.png" alt="普通用户只能看到授权范围内的邮件，看不到原始邮件"><br><sub>普通用户只能看到授权范围内的邮件，看不到原始邮件</sub></td>
+    <td width="50%" valign="top"><img src="img/screenshot-keys.png" alt="API Key 管理，附带可直接复制的 MCP 客户端接入命令"><br><sub>API Key 管理，附带可直接复制的 MCP 客户端接入命令</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="img/screenshot-mobile.png" alt="移动端：列表与详情" width="560"><br><sub>移动端：列表与详情</sub></p>
+
+<sub>截图使用演示数据，其中的服务名和邮箱地址均为虚构。</sub>
+
+---
+
 ## 目录 📑
 
 - [功能](#功能-)
@@ -32,7 +53,6 @@ flowchart LR
 - [MCP Server（AI Agent 接入）](#mcp-serverai-agent-接入-)
 - [从 v1 升级](#从-v1-升级-)
 - [许可证](#许可证-)
-- [截图](#截图-)
 
 ---
 
@@ -287,16 +307,6 @@ v2 是破坏性变更：
 ## 许可证 📜
 
 [MIT License](LICENSE)
-
----
-
-## 截图 📸
-
-![邮件列表与验证码提取](img/Group%201.png)
-
-![邮件详情与验证码](img/Group%202.png)
-
-![HTML 邮件渲染预览](img/Group%203.png)
 
 ---
 

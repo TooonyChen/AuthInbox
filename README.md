@@ -23,6 +23,27 @@ flowchart LR
 
 ---
 
+## Screenshots 📸
+
+![Inbox: every mail is classified and its code is extracted for one-click copy](img/screenshot-inbox.png)
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="img/screenshot-rendered.png" alt="Original HTML, sanitized and rendered in a sandboxed iframe (admin only)"><br><sub>Original HTML, sanitized and rendered in a sandboxed iframe (admin only)</sub></td>
+    <td width="50%" valign="top"><img src="img/screenshot-admin.png" alt="Users &amp; Access: grant each user an address pattern and the categories they may read"><br><sub>Users &amp; Access: grant each user an address pattern and the categories they may read</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="img/screenshot-user.png" alt="A regular user sees only what their grants allow, without the raw message"><br><sub>A regular user sees only what their grants allow, without the raw message</sub></td>
+    <td width="50%" valign="top"><img src="img/screenshot-keys.png" alt="API keys plus a ready-to-paste command for connecting an MCP client"><br><sub>API keys plus a ready-to-paste command for connecting an MCP client</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="img/screenshot-mobile.png" alt="Mobile layout: list and detail views" width="560"><br><sub>Mobile layout: list and detail views</sub></p>
+
+<sub>Screenshots use demo data. All services and addresses shown are fictional.</sub>
+
+---
+
 ## Table of Contents 📑
 
 - [Features](#features-)
@@ -32,7 +53,6 @@ flowchart LR
 - [MCP Server (for AI Agents)](#mcp-server-for-ai-agents-)
 - [Upgrading from v1](#upgrading-from-v1-)
 - [License](#license-)
-- [Screenshots](#screenshots-)
 
 ---
 
@@ -285,16 +305,6 @@ v2 is a breaking change:
 ## License 📜
 
 [MIT License](LICENSE)
-
----
-
-## Screenshots 📸
-
-![Mail list with extracted codes](img/Group%201.png)
-
-![Mail detail with verification code](img/Group%202.png)
-
-![Rendered HTML email preview](img/Group%203.png)
 
 ---
 
